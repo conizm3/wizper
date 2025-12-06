@@ -1,0 +1,346 @@
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Play, Pause, HelpCircle, ArrowLeft, Volume2, Sparkles } from 'lucide-react';
+
+/**
+ * ==========================================
+ * GAME DATA CONFIGURATION
+ * ==========================================
+ * ここで画像、音声、正解アイテムの座標を定義します。
+ * 座標（x, y）は画像の左上を(0,0)、右下を(100,100)としたパーセンテージです。
+ * radiusは当たり判定の大きさです。
+ */
+
+const GAME_DATA = {
+  appName: "Wizper", // アプリ名
+  chapter: "Chapter 1: The Master's Desk", // チャプター名
+  // 仮の高画質画像（Unsplashより）
+  imageUrl: "https://images.unsplash.com/photo-1516962215378-7fa2e137ae91?q=80&w=2400&auto=format&fit=crop", 
+  // 仮の音声スクリプト（実際はElevenLabsのファイルを指定）
+  script: "Pass me the quill... not the red one, the white one. It's next to the old letters.",
+  targets: [
+    { 
+      id: 1, 
+      name: "White Quill", 
+      x: 65, // 画像の左から65%の位置
+      y: 45, // 画像の上から45%の位置
+      radius: 8, // タップ判定の半径
+      found: false,
+      hint: "It's near the center, resting on some papers."
+    },
+    { 
+      id: 2, 
+      name: "Ink Pot", 
+      x: 30, 
+      y: 70, 
+      radius: 6, 
+      found: false,
+      hint: "Look towards the bottom left."
+    },
+    // 他のアイテムもここに追加...
+  ]
+};
+
+const App = () => {
+  // --- STATE MANAGEMENT ---
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [targets, setTargets] = useState(GAME_DATA.targets);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [message, setMessage] = useState(null); // 'Correct!', 'Wrong...' etc.
+  const [showHint, setShowHint] = useState(false);
+  
+  // Refs for touch/drag calculations
+  const containerRef = useRef(null);
+  const imageRef = useRef(null);
+  const isDragging = useRef(false);
+  const lastPosition = useRef({ x: 0, y: 0 });
+  const lastTouchDistance = useRef(null);
+
+  // --- AUDIO SIMULATION ---
+  // 実際は <audio> タグを使いますが、プロトタイプなので擬似的に表現
+  useEffect(() => {
+    let timer;
+    if (isPlaying) {
+      // 5秒後に自動で停止（デモ用）
+      timer = setTimeout(() => setIsPlaying(false), 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [isPlaying]);
+
+  // --- TOUCH & MOUSE EVENT HANDLERS (Pan & Zoom Logic) ---
+
+  const handleMouseDown = (e) => {
+    isDragging.current = true;
+    lastPosition.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - lastPosition.current.x;
+    const dy = e.clientY - lastPosition.current.y;
+    setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+    lastPosition.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+  };
+
+  const handleWheel = (e) => {
+    // Wheel zoom logic
+    e.preventDefault();
+    const scaleAmount = -e.deltaY * 0.001;
+    const newZoom = Math.min(Math.max(1, zoom + scaleAmount), 4); // Min 1x, Max 4x
+    setZoom(newZoom);
+  };
+
+  // Touch Logic (Simplified Pinch to Zoom)
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 1) {
+      isDragging.current = true;
+      lastPosition.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      // Pinch start
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      lastTouchDistance.current = dist;
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    // Prevent default scroll
+    // e.preventDefault(); // React synthetic events might not support this directly here without passive: false
+
+    if (e.touches.length === 1 && isDragging.current) {
+      // Pan
+      const dx = e.touches[0].clientX - lastPosition.current.x;
+      const dy = e.touches[0].clientY - lastPosition.current.y;
+      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      lastPosition.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2 && lastTouchDistance.current) {
+      // Pinch Zoom
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const delta = dist - lastTouchDistance.current;
+      const newZoom = Math.min(Math.max(1, zoom + delta * 0.01), 4);
+      setZoom(newZoom);
+      lastTouchDistance.current = dist;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    isDragging.current = false;
+    lastTouchDistance.current = null;
+  };
+
+  // --- HIT TESTING LOGIC ---
+  const handleImageClick = (e) => {
+    // 拡大・移動中にクリックしてしまうのを防ぐための簡易ガード
+    // (実実装ではDrag判定を入れる)
+    
+    if (!imageRef.current) return;
+
+    const rect = imageRef.current.getBoundingClientRect();
+    
+    // 画像内でのクリック位置（ピクセル）
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // 画像の現在の表示サイズ
+    const width = rect.width;
+    const height = rect.height;
+
+    // パーセンテージに変換
+    const clickXPercent = (clickX / width) * 100;
+    const clickYPercent = (clickY / height) * 100;
+
+    // 判定
+    let hit = false;
+    const newTargets = targets.map(target => {
+      if (target.found) return target;
+
+      // 距離計算 (簡易的にアスペクト比を無視して％距離で計算)
+      // 厳密には画像の縦横比考慮が必要ですがプロトタイプとして簡易化
+      const dist = Math.sqrt(
+        Math.pow(clickXPercent - target.x, 2) + 
+        Math.pow(clickYPercent - target.y, 2)
+      );
+
+      if (dist < target.radius) {
+        hit = true;
+        // Effect
+        triggerFeedback(true, target.name);
+        return { ...target, found: true };
+      }
+      return target;
+    });
+
+    if (hit) {
+      setTargets(newTargets);
+    } else {
+      triggerFeedback(false);
+    }
+  };
+
+  const triggerFeedback = (isCorrect, name = "") => {
+    if (isCorrect) {
+      setMessage({ type: 'success', text: `Found: ${name}` });
+    } else {
+      setMessage({ type: 'error', text: "Not that one..." });
+    }
+    setTimeout(() => setMessage(null), 2000);
+  };
+
+  // --- RENDER HELPERS ---
+  
+  // 残りのアイテム数
+  const remaining = targets.filter(t => !t.found).length;
+
+  return (
+    <div className="flex flex-col h-screen w-full bg-[#f9f9f7] text-[#2c2c2c] font-sans overflow-hidden select-none">
+      
+      {/* HEADER: Minimal ZARA Home Style */}
+      <header className="flex justify-between items-center px-6 py-4 bg-white/80 backdrop-blur-sm z-10 border-b border-gray-100">
+        <div className="flex items-center gap-2 text-gray-400">
+          <ArrowLeft size={20} />
+          <span className="text-xs uppercase tracking-widest">Back</span>
+        </div>
+        <div className="text-center flex flex-col items-center">
+          {/* アプリ名を小さく、チャプター名をメインに表示 */}
+          <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-1">{GAME_DATA.appName}</span>
+          <h1 className="font-serif text-lg tracking-wide font-medium text-gray-800">{GAME_DATA.chapter}</h1>
+          <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">
+            {remaining === 0 ? "Complete" : `${remaining} Items Left`}
+          </p>
+        </div>
+        <div className="w-16 flex justify-end">
+           {/* Placeholder for menu */}
+           <div className="w-6 h-6 border border-gray-300 rounded-full flex items-center justify-center">
+             <span className="text-[10px]">{remaining}</span>
+           </div>
+        </div>
+      </header>
+
+      {/* GAME VIEWPORT */}
+      <div 
+        ref={containerRef}
+        className="flex-1 relative overflow-hidden bg-[#e5e5e5] cursor-grab active:cursor-grabbing touch-none"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* The Game Image Container */}
+        <div 
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0',
+            transition: isDragging.current ? 'none' : 'transform 0.1s ease-out',
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <div className="relative shadow-2xl" style={{ width: 'auto', height: '80vh' }}>
+            <img 
+              ref={imageRef}
+              src={GAME_DATA.imageUrl} 
+              alt="Hidden Objects Scene" 
+              className="max-h-full max-w-none object-contain pointer-events-auto"
+              draggable={false}
+              onClick={handleImageClick}
+            />
+
+            {/* DEBUG: 正解エリアを可視化する場合 (開発用) */}
+            {/* {targets.map(t => !t.found && (
+              <div key={t.id} style={{
+                position: 'absolute',
+                left: `${t.x}%`, top: `${t.y}%`,
+                width: `${t.radius * 2}%`, height: `${t.radius * 2}%`,
+                transform: 'translate(-50%, -50%)',
+                border: '1px solid red', borderRadius: '50%'
+              }} />
+            ))} 
+            */}
+          </div>
+        </div>
+
+        {/* FEEDBACK OVERLAY (Fade in/out) */}
+        {message && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20">
+            <div className={`px-6 py-3 rounded-none shadow-xl flex items-center gap-3 transition-all ${
+              message.type === 'success' 
+                ? 'bg-[#2c2c2c] text-white' 
+                : 'bg-white text-[#2c2c2c] border border-gray-200'
+            }`}>
+              {message.type === 'success' && <Sparkles size={16} className="text-yellow-400" />}
+              <span className="font-serif italic text-sm tracking-wide">{message.text}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* FOOTER CONTROLS */}
+      <footer className="bg-white px-8 py-6 pb-8 border-t border-gray-100 flex justify-between items-center z-10">
+        
+        {/* Play Voice Button */}
+        <button 
+          onClick={() => setIsPlaying(!isPlaying)}
+          className={`flex items-center gap-3 transition-colors ${isPlaying ? 'text-gray-400' : 'text-black'}`}
+        >
+          <div className={`w-12 h-12 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-all ${isPlaying ? 'animate-pulse bg-gray-50' : ''}`}>
+            {isPlaying ? <Pause size={20} fill="currentColor" className="opacity-50" /> : <Play size={20} fill="currentColor" />}
+          </div>
+          <div className="flex flex-col text-left">
+            <span className="text-[10px] uppercase tracking-widest text-gray-400">The Master</span>
+            <span className="font-serif text-sm italic">
+              {isPlaying ? "Speaking..." : "Listen to order"}
+            </span>
+          </div>
+        </button>
+
+        {/* Hint Button */}
+        <button 
+          onClick={() => setShowHint(!showHint)}
+          className="p-3 text-gray-400 hover:text-gray-800 transition-colors"
+        >
+          <HelpCircle size={22} strokeWidth={1.5} />
+        </button>
+      </footer>
+
+      {/* HINT OVERLAY (Visual only for now) */}
+      {showHint && (
+        <div className="absolute inset-x-0 bottom-24 p-4 z-20 flex justify-center animate-fade-in-up">
+          <div className="bg-white/90 backdrop-blur border border-gray-200 p-4 shadow-sm max-w-sm w-full">
+             <h4 className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Transcript</h4>
+             <p className="font-serif text-sm italic leading-relaxed text-gray-600">
+               "{GAME_DATA.script}"
+             </p>
+          </div>
+        </div>
+      )}
+      
+      <style>{`
+        .animate-fade-in-up {
+          animation: fadeInUp 0.3s ease-out forwards;
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default App;
