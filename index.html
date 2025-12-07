@@ -2,40 +2,126 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Wizper - Audio Hidden Object Game</title>
     
-    <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- Babel (for JSX) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Lato:wght@300;400&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
 
     <style>
         body {
             font-family: 'Lato', sans-serif;
-            overscroll-behavior: none; /* バウンススクロール防止 */
+            background-color: #1a1a1a;
+            color: #f9f9f7;
+            -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            overscroll-behavior: none;
         }
         h1, h2, .font-serif {
             font-family: 'Cinzel', serif;
         }
-        /* ピンチズーム時のブラウザの挙動を抑制 */
-        .game-container {
+        .font-script {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes floatUp {
+            0% { 
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* New Animations for Game/Story */
+        @keyframes wipeIn { 
+            0% { opacity: 1; clip-path: inset(0 100% 0 0); } 
+            100% { opacity: 1; clip-path: inset(0 0 0 0); } 
+        }
+        @keyframes expandLine { from { width: 0; opacity: 0; } to { width: 40px; opacity: 0.5; } }
+        @keyframes breathe { 
+            0%, 100% { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.02); } 
+            50% { border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.08); } 
+        }
+
+        .anim-fade-in {
+            opacity: 0;
+            animation: fadeIn 2.0s ease-out forwards;
+        }
+
+        .anim-fade-in-bg {
+            opacity: 0;
+            animation: fadeIn 5.0s ease-out forwards;
+        }
+
+        /* Home Screen Classes */
+        .glass-float-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(5px);             
+            -webkit-backdrop-filter: blur(5px);     
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            opacity: 0;
+            animation: floatUp 1.5s ease-out forwards;
+            transform: translateZ(0); 
+        }
+
+        .overlay-container {
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+            background-color: rgba(26, 26, 26, 0.98);
+            padding-top: max(3rem, env(safe-area-inset-top));
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease-out;
+        }
+        
+        .overlay-container.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* Game Viewport */
+        .game-viewport {
             touch-action: none;
+            background-color: #000;
         }
-        .animate-fade-in-up {
-            animation: fadeInUp 0.3s ease-out forwards;
+        
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
         }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #444; 
+            border-radius: 2px;
+        }
+        
+        .mb-safe {
+            margin-bottom: env(safe-area-inset-bottom, 20px);
+        }
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom, 20px);
         }
     </style>
 </head>
@@ -43,77 +129,455 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useRef, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
-        // --- ICONS (SVG Components) ---
-        const Play = ({ size = 24, className = "", fill="none" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        );
-        const Pause = ({ size = 24, className = "", fill="none" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-        );
-        const HelpCircle = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        );
-        const ArrowLeft = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-        );
-        const Sparkles = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-        );
-
-        // --- GAME DATA ---
-        const GAME_DATA = {
-            appName: "Wizper", 
-            chapter: "Chapter 1: The Master's Desk", 
-            // ユーザー指定の画像URL
-            imageUrl: "https://wordrobe.cc/wizper/images/chapter_1.png", 
-            // 音声スクリプト
-            script: "First, find the old key... yes, look down low. Then the strange stone, the mark, the sand, and finally the coin at the top.",
-            targets: [
-                { id: 1, name: "Old Key", x: 29.8, y: 84.6, radius: 7, found: false },
-                { id: 2, name: "Stone", x: 74.3, y: 48.9, radius: 7, found: false },
-                { id: 3, name: "Mark", x: 91.5, y: 38.3, radius: 7, found: false },
-                { id: 4, name: "Sand", x: 22.6, y: 67.1, radius: 7, found: false },
-                { id: 5, name: "Coin", x: 24.3, y: 11.7, radius: 7, found: false },
-            ]
+        // --- FIREBASE INIT ---
+        const FIREBASE_CONFIG = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
-        const App = () => {
-            // --- STATE ---
+        let auth = null;
+        let db = null;
+        let googleProvider = null;
+
+        try {
+            if (firebase.apps.length === 0 && FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY") {
+                firebase.initializeApp(FIREBASE_CONFIG);
+                auth = firebase.auth();
+                db = firebase.firestore();
+                googleProvider = new firebase.auth.GoogleAuthProvider();
+            }
+        } catch (e) {
+            console.error("Firebase init error:", e);
+        }
+
+        // --- DATA ---
+        const CHAPTERS_DB = {
+            1: {
+                id: 1,
+                title: "The Master's Desk",
+                sub: "Study Room",
+                // Story Briefing Data
+                storyLines: [
+                    "Ah, there you are, apprentice.",
+                    "My desk is in utter chaos again...",
+                    "I need to finish this spell before the moon rises.",
+                    "Be my eyes, will you?"
+                ],
+                mission: "- Find 5 hidden items -",
+                // Game Data
+                imageUrl: "https://wordrobe.cc/wizper/images/chapter_1.png",
+                script: "First, find the old key... yes, look down low. Then the strange stone, the mark, the sand, and finally the coin at the top.",
+                targets: [
+                    { id: 1, name: "Old Key", x: 29.8, y: 84.6, radius: 7, found: false },
+                    { id: 2, name: "Stone", x: 74.3, y: 48.9, radius: 7, found: false },
+                    { id: 3, name: "Mark", x: 91.5, y: 38.3, radius: 7, found: false },
+                    { id: 4, name: "Sand", x: 22.6, y: 67.1, radius: 7, found: false },
+                    { id: 5, name: "Coin", x: 24.3, y: 11.7, radius: 7, found: false },
+                ],
+                completionText: "Well done. You have keen eyes, unlike my previous apprentice..."
+            },
+            2: {
+                id: 2,
+                title: "Greenhouse",
+                sub: "Herbs & Roots",
+                storyLines: [
+                    "Be careful in here.",
+                    "The Mandrakes are light sleepers.",
+                    "I need ingredients for a silencing potion.",
+                    "Don't break anything."
+                ],
+                mission: "- Find 3 hidden items -",
+                imageUrl: "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?q=80&w=2400&auto=format&fit=crop", // 仮画像
+                script: "Find the red flower on the left, the trowel in the middle, and the watering can on the right.",
+                targets: [
+                    { id: 1, name: "Red Flower", x: 20, y: 50, radius: 10, found: false },
+                    { id: 2, name: "Trowel", x: 50, y: 50, radius: 10, found: false },
+                    { id: 3, name: "Watering Can", x: 80, y: 50, radius: 10, found: false }
+                ],
+                completionText: "Excellent work. These roots are fresh. Now, to the cauldron."
+            }
+        };
+
+        // --- ICONS ---
+        const SettingsIcon = ({ size = 20 }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>);
+        const BookIcon = ({ size = 20 }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>);
+        const LockIcon = ({ size = 16 }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>);
+        const EarIcon = ({ size = 20 }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9a6 6 0 0 1 12 0v5"/><path d="M18 19a3 3 0 0 1-6 0v-2h6v2z"/><path d="M6 19v-2h6"/></svg>);
+        const CoffeeIcon = ({ size = 18 }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>);
+        const GoogleIcon = ({ size = 16 }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .533 5.347.533 12S5.867 24 12.48 24c3.44 0 6.04-1.133 8.133-3.293 2.147-2.147 2.813-5.173 2.813-7.627 0-.76-.08-1.467-.173-2.16H12.48z"/></svg>);
+        
+        // Game Icons (CurrentColor for theme adaptation)
+        const Play = ({ size = 20, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" className={className}><polygon points="7 4 21 12 7 20"/></svg>);
+        const Pause = ({ size = 20, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" className={className}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>);
+        const MusicNote = ({ size = 22, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>);
+        const MusicOff = ({ size = 22, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>);
+        const Sparkles = ({ size = 24, fill="currentColor" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="none"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>);
+        const ArrowLeft = ({ size = 24, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>);
+        const NextIcon = ({ size = 16, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>);
+
+        // ----------------------------------------------------------------------
+        // COMPONENT: Home Screen (Based on User's Code)
+        // ----------------------------------------------------------------------
+        const HomeScreen = ({ onNavigate, user, login, logout, clearedChapters }) => {
+            const [view, setView] = useState('main'); 
+            const [showTransition, setShowTransition] = useState(false);
+            const [subtitles, setSubtitles] = useState(false);
+            const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+            useEffect(() => {
+                const timer = setTimeout(() => {
+                    setIsInitialLoad(false);
+                }, 6000); 
+                return () => clearTimeout(timer);
+            }, []);
+
+            const handleStartGame = () => {
+                setShowTransition(true);
+                setTimeout(() => {
+                    // Logic linked to App navigation
+                    const lastCleared = Math.max(0, ...clearedChapters);
+                    const nextChapter = (lastCleared < Object.keys(CHAPTERS_DB).length) ? lastCleared + 1 : 1;
+                    onNavigate('STORY', nextChapter > 1 ? nextChapter : 1);
+                    setShowTransition(false);
+                }, 1000);
+            };
+
+            const getGlassClass = () => isInitialLoad ? 'glass-float-container' : 'glass-float-container !animate-none !opacity-100';
+            const getFadeClass = (animClass) => isInitialLoad ? animClass : 'opacity-100';
+
+            return (
+                <div className="relative w-full h-[100dvh] flex flex-col justify-between py-12 px-6 overflow-hidden">
+                    
+                    <div className={`absolute inset-0 z-0 pointer-events-none ${getFadeClass('anim-fade-in-bg')}`} style={isInitialLoad ? {animationDelay: '0s'} : {}}>
+                        <img 
+                            src="https://images.unsplash.com/photo-1535905557558-afc4877a26fc?q=80&w=2400&auto=format&fit=crop" 
+                            alt="Background" 
+                            className="w-full h-full object-cover opacity-40 grayscale"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a] via-transparent to-[#1a1a1a]"></div>
+                    </div>
+
+                    <div 
+                        className={`z-10 text-center mt-8 shrink-0 ${getFadeClass('anim-fade-in')}`}
+                        style={isInitialLoad ? {animationDelay: '1.5s'} : {}}
+                    >
+                        <p className="text-[10px] tracking-[0.4em] uppercase text-gray-400 mb-4">Audio Hidden Object Game</p>
+                        <h1 className="text-5xl md:text-7xl font-serif text-[#f9f9f7] tracking-wider mb-2">Wizper</h1>
+                        <p className="font-script text-xl text-gray-400 italic opacity-80">- The Apprentice's Log -</p>
+                    </div>
+
+                    <div className="z-10 w-full max-w-md mx-auto mb-safe flex flex-col items-center gap-6">
+                        
+                        <div className="w-full flex flex-col items-center gap-6">
+                            
+                            <p 
+                                className={`text-xs text-center leading-relaxed text-gray-400 max-w-xs font-serif italic ${getFadeClass('anim-fade-in')}`} 
+                                style={isInitialLoad ? {animationDelay: '2.5s'} : {}}
+                            >
+                                "Listen carefully, apprentice.<br/>My eyes aren't what they used to be..."
+                            </p>
+
+                            <div className="w-full">
+                                <button 
+                                    onClick={handleStartGame}
+                                    className={`w-full py-4 hover:bg-white/10 transition-colors text-sm tracking-[0.2em] uppercase font-serif text-[#f9f9f7] ${getGlassClass()}`}
+                                    style={isInitialLoad ? {animationDelay: '2.8s'} : {}}
+                                >
+                                    Open Journal
+                                </button>
+                            </div>
+                            
+                            <div 
+                                className={`flex gap-4 w-full ${getFadeClass('anim-fade-in')}`} 
+                                style={isInitialLoad ? {animationDelay: '3.0s'} : {}}
+                            >
+                                <button 
+                                    onClick={() => setView('chapters')}
+                                    className="flex-1 py-3 border border-white/10 hover:bg-white/5 transition-colors text-xs tracking-widest uppercase flex justify-center items-center gap-2"
+                                >
+                                    <BookIcon size={14} /> Log
+                                </button>
+                                <button 
+                                    onClick={() => setView('howto')}
+                                    className="flex-1 py-3 border border-white/10 hover:bg-white/5 transition-colors text-xs tracking-widest uppercase flex justify-center items-center gap-2"
+                                >
+                                    <EarIcon size={14} /> Guide
+                                </button>
+                            </div>
+                            
+                            <div 
+                                className={`${getFadeClass('anim-fade-in')}`} 
+                                style={isInitialLoad ? {animationDelay: '3.2s'} : {}}
+                            >
+                                <button 
+                                    onClick={() => setView('settings')}
+                                    className="mt-2 text-gray-500 hover:text-white transition-colors"
+                                >
+                                    <SettingsIcon size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={`overlay-container flex flex-col ${view === 'chapters' ? 'active' : ''}`}>
+                        <div className="flex justify-between items-center px-8 pb-4 border-b border-white/10 shrink-0">
+                            <h2 className="text-lg font-serif tracking-widest">Journal Log</h2>
+                            <button onClick={() => setView('main')} className="text-xs uppercase tracking-widest text-gray-400 p-2">Close</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scroll flex flex-col gap-4 p-8">
+                            <p className="text-xs text-gray-500 font-serif italic mb-2 text-center">Record of assigned tasks.</p>
+                            
+                            {Object.values(CHAPTERS_DB).map(chapter => {
+                                const maxCleared = Math.max(0, ...clearedChapters);
+                                const locked = chapter.id > maxCleared + (maxCleared < chapter.id ? 0 : 1);
+                                
+                                return (
+                                    <div key={chapter.id} onClick={() => !locked && onNavigate('STORY', chapter.id)} className={`p-4 border ${locked ? 'border-white/5 text-gray-600' : 'border-white/20 bg-white/5 cursor-pointer hover:bg-white/10'} transition-all`}>
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className="text-[10px] uppercase tracking-widest opacity-50">Chapter {chapter.id}</span>
+                                            {locked ? <LockIcon size={12}/> : <span className="text-[10px] text-gray-400">Available</span>}
+                                        </div>
+                                        <h3 className="font-serif text-lg mb-1">{chapter.title}</h3>
+                                        <p className="font-script text-sm italic opacity-60">{chapter.sub}</p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className={`overlay-container flex flex-col ${view === 'howto' ? 'active' : ''}`}>
+                        <div className="flex justify-between items-center px-8 pb-4 border-b border-white/10 shrink-0">
+                            <h2 className="text-lg font-serif tracking-widest">Guide</h2>
+                            <button onClick={() => setView('main')} className="text-xs uppercase tracking-widest text-gray-400 p-2">Close</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scroll p-6 flex flex-col justify-start pt-12 items-center">
+                            <div className="flex flex-col gap-8 items-center text-center">
+                                <div className="max-w-xs shrink-0">
+                                    <p className="text-sm text-gray-400 italic mb-2">"Find the hidden objects."</p>
+                                </div>
+                                <div className="flex flex-col gap-6 w-full max-w-xs px-2">
+                                    <div className="flex items-center gap-5 text-left">
+                                        <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center shrink-0">
+                                            <EarIcon size={20} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xs font-bold uppercase tracking-widest mb-1">Listen</h3>
+                                            <p className="text-xs text-gray-400 font-serif italic">Hear the voice instructions.</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-5 text-left">
+                                        <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xs font-bold uppercase tracking-widest mb-1">Search</h3>
+                                            <p className="text-xs text-gray-400 font-serif italic">Pinch to zoom. Swipe to pan.</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-5 text-left">
+                                        <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xs font-bold uppercase tracking-widest mb-1">Select</h3>
+                                            <p className="text-xs text-gray-400 font-serif italic">Double tap to collect the object.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={`overlay-container flex flex-col ${view === 'settings' ? 'active' : ''}`}>
+                        <div className="flex justify-between items-center px-8 pb-4 border-b border-white/10 shrink-0">
+                            <h2 className="text-lg font-serif tracking-widest">Settings</h2>
+                            <button onClick={() => setView('main')} className="text-xs uppercase tracking-widest text-gray-400 p-2">Close</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scroll p-8 flex flex-col gap-8">
+                            
+                            <div className="flex flex-col gap-3">
+                                <span className="text-sm tracking-widest mb-2">Cloud Save</span>
+                                {user ? (
+                                    <div className="p-4 border border-white/10 bg-white/5 flex flex-col gap-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
+                                                {user.photoURL && <img src={user.photoURL} alt="User" />}
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-white">{user.displayName}</p>
+                                                <p className="text-[10px] text-gray-400">Progress Saved</p>
+                                            </div>
+                                        </div>
+                                        <button onClick={logout} className="text-[10px] text-red-400 underline self-start mt-1">Sign Out</button>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-2">
+                                        <button 
+                                            onClick={login}
+                                            className="flex items-center justify-center gap-3 w-full py-3 border border-white/20 hover:bg-white/5 text-gray-300 transition-colors"
+                                        >
+                                            <GoogleIcon size={16} />
+                                            <span className="text-xs font-bold uppercase tracking-widest">Sign in with Google</span>
+                                        </button>
+                                        <p className="text-[10px] text-gray-500 italic">
+                                            Sign in to save your progress across devices.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="h-px bg-white/50 w-full"></div>
+
+                            <div className="flex flex-col gap-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm tracking-widest">Subtitles</span>
+                                    <button 
+                                        onClick={() => setSubtitles(!subtitles)}
+                                        className={`text-xs px-3 py-1 border transition-all ${subtitles ? 'bg-white text-black border-white' : 'text-gray-400 border-gray-600'}`}
+                                    >
+                                        {subtitles ? 'ON' : 'OFF'}
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-gray-500 italic leading-relaxed">
+                                    * We recommend playing with subtitles OFF for the best immersive experience.
+                                </p>
+                            </div>
+
+                            <div className="h-px bg-white/50 w-full"></div>
+
+                            <div className="flex flex-col gap-6 items-center mt-4">
+                                <a href="#" className="text-xs text-gray-500 hover:text-white underline underline-offset-4 decoration-gray-700 transition-colors">
+                                    Privacy Policy
+                                </a>
+
+                                <button className="flex items-center gap-3 px-6 py-3 border border-yellow-700/50 text-yellow-600 hover:bg-yellow-900/10 hover:text-yellow-500 transition-all rounded-sm group">
+                                    <CoffeeIcon size={16} />
+                                    <span className="text-xs uppercase tracking-widest">Gift a Coffee</span>
+                                </button>
+                            </div>
+
+                            <div className="mt-auto pt-8 text-center">
+                                <p className="text-[10px] text-gray-700 font-mono">v0.2.0 Cloud</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {showTransition && (
+                        <div className="absolute inset-0 bg-black z-50 animate-fade-in flex items-center justify-center">
+                            <p className="text-white font-serif tracking-widest animate-pulse opacity-80">Opening Journal...</p>
+                        </div>
+                    )}
+
+                </div>
+            );
+        };
+
+        // ----------------------------------------------------------------------
+        // COMPONENT: Story Screen (Briefing)
+        // ----------------------------------------------------------------------
+        const StoryScreen = ({ chapterId, onStart }) => {
+            const data = CHAPTERS_DB[chapterId];
+            const [visibleLines, setVisibleLines] = useState(0);
+            const [showButton, setShowButton] = useState(false);
+
+            useEffect(() => {
+                const timers = data.storyLines.map((_, index) => {
+                    return setTimeout(() => setVisibleLines(prev => prev + 1), 800 * (index + 1) + 500); 
+                });
+                const btnTimer = setTimeout(() => setShowButton(true), 800 * (data.storyLines.length + 1) + 500);
+                return () => { timers.forEach(clearTimeout); clearTimeout(btnTimer); };
+            }, [data]);
+
+            return (
+                <div className="relative w-full h-[100dvh] flex flex-col items-center justify-center px-8 py-12 bg-[#111] animate-fade-in-long">
+                    <div className="absolute top-16 text-center" style={{animation: 'fadeIn 2s ease-out forwards'}}>
+                        <p className="text-[10px] tracking-[0.3em] text-gray-500 uppercase mb-2">Chapter {data.id}</p>
+                        <h1 className="text-2xl font-serif text-gray-300 tracking-widest">{data.title}</h1>
+                        <div className="w-0 h-px bg-white mx-auto mt-6 animate-expand-line"></div>
+                    </div>
+
+                    <div className="flex flex-col gap-6 text-center max-w-md">
+                        {data.storyLines.map((line, index) => (
+                            <p key={index} className={`font-script text-lg text-[#f9f9f7] leading-relaxed transition-all duration-1000 transform ${index < visibleLines ? 'opacity-80 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                                "{line}"
+                            </p>
+                        ))}
+                    </div>
+
+                    <div className={`absolute bottom-16 transition-all duration-1000 ${showButton ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                        <div className="text-center mb-8">
+                            <p className="text-xs font-serif tracking-widest text-gray-400 opacity-80">{data.mission}</p>
+                        </div>
+                        <button onClick={onStart} className="w-64 py-4 border border-white/20 text-sm tracking-[0.2em] uppercase font-serif text-white cursor-pointer animate-breathe hover:bg-white/5 transition-colors">
+                            Begin Search
+                        </button>
+                    </div>
+                    
+                    <div className="absolute inset-0 pointer-events-none opacity-20" style={{backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")'}}></div>
+                    
+                    <style>{`
+                        .animate-fade-in-long { animation: fadeIn 1.5s ease-out; }
+                        .animate-expand-line { animation: expandLine 1.5s ease-out forwards 0.5s; }
+                        .animate-breathe { animation: breathe 4s infinite ease-in-out; }
+                    `}</style>
+                </div>
+            );
+        };
+
+        // ----------------------------------------------------------------------
+        // COMPONENT: Game Screen (Dark Mode)
+        // ----------------------------------------------------------------------
+        const GameScreen = ({ chapterId, onBack, onComplete }) => {
+            const data = CHAPTERS_DB[chapterId];
             const [isPlaying, setIsPlaying] = useState(false);
-            const [targets, setTargets] = useState(GAME_DATA.targets);
+            const [isBgmPlaying, setIsBgmPlaying] = useState(false); 
+            const [targets, setTargets] = useState(data.targets.map(t => ({...t}))); 
             const [zoom, setZoom] = useState(1);
             const [pan, setPan] = useState({ x: 0, y: 0 });
             const [message, setMessage] = useState(null); 
-            const [showHint, setShowHint] = useState(false);
+            const [isComplete, setIsComplete] = useState(false);
             
-            // DEV MODE STATE
             const [isDevMode, setIsDevMode] = useState(false);
             const [lastClickCoords, setLastClickCoords] = useState(null);
 
-            // Refs
             const containerRef = useRef(null);
             const imageRef = useRef(null);
             const isDragging = useRef(false);
             const lastPosition = useRef({ x: 0, y: 0 });
-            const lastTouchDistance = useRef(null);
+            const lastPinchDistance = useRef(null);
+            const lastTapTime = useRef(0);
 
-            // --- AUDIO SIMULATION ---
             useEffect(() => {
                 let timer;
-                if (isPlaying) {
-                    timer = setTimeout(() => setIsPlaying(false), 5000);
-                }
+                if (isPlaying) { timer = setTimeout(() => setIsPlaying(false), 5000); }
                 return () => clearTimeout(timer);
             }, [isPlaying]);
 
-            // --- HANDLERS ---
-            const handleMouseDown = (e) => {
-                isDragging.current = true;
-                lastPosition.current = { x: e.clientX, y: e.clientY };
+            // Check completion
+            useEffect(() => {
+                const remaining = targets.filter(t => !t.found).length;
+                if (remaining === 0 && targets.length > 0 && !isComplete) {
+                    setIsComplete(true);
+                }
+            }, [targets]);
+
+            // Pan/Zoom Logic
+            const updateZoom = (newZoom, center) => {
+                const clampedZoom = Math.min(Math.max(0.5, newZoom), 4);
+                const zoomFactor = clampedZoom / zoom;
+                const newPanX = center.x - (center.x - pan.x) * zoomFactor;
+                const newPanY = center.y - (center.y - pan.y) * zoomFactor;
+                setZoom(clampedZoom);
+                setPan({ x: newPanX, y: newPanY });
             };
 
+            const handleMouseDown = (e) => { isDragging.current = true; lastPosition.current = { x: e.clientX, y: e.clientY }; };
             const handleMouseMove = (e) => {
                 if (!isDragging.current) return;
                 const dx = e.clientX - lastPosition.current.x;
@@ -121,78 +585,62 @@
                 setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
                 lastPosition.current = { x: e.clientX, y: e.clientY };
             };
-
-            const handleMouseUp = () => {
-                isDragging.current = false;
-            };
-
+            const handleMouseUp = () => { isDragging.current = false; };
             const handleWheel = (e) => {
                 e.preventDefault();
-                const scaleAmount = -e.deltaY * 0.001;
-                const newZoom = Math.min(Math.max(1, zoom + scaleAmount), 4);
-                setZoom(newZoom);
+                const rect = containerRef.current.getBoundingClientRect();
+                const center = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                const delta = -e.deltaY * 0.001;
+                updateZoom(zoom + delta, center);
             };
-
             const handleTouchStart = (e) => {
                 if (e.touches.length === 1) {
                     isDragging.current = true;
                     lastPosition.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                 } else if (e.touches.length === 2) {
-                    const dist = Math.hypot(
-                        e.touches[0].clientX - e.touches[1].clientX,
-                        e.touches[0].clientY - e.touches[1].clientY
-                    );
-                    lastTouchDistance.current = dist;
+                    isDragging.current = false;
+                    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    lastPinchDistance.current = dist;
                 }
             };
-
             const handleTouchMove = (e) => {
-                // スマホでのドラッグ・ピンチ処理
                 if (e.touches.length === 1 && isDragging.current) {
                     const dx = e.touches[0].clientX - lastPosition.current.x;
                     const dy = e.touches[0].clientY - lastPosition.current.y;
                     setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
                     lastPosition.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                } else if (e.touches.length === 2 && lastTouchDistance.current) {
-                    const dist = Math.hypot(
-                        e.touches[0].clientX - e.touches[1].clientX,
-                        e.touches[0].clientY - e.touches[1].clientY
-                    );
-                    const delta = dist - lastTouchDistance.current;
-                    const newZoom = Math.min(Math.max(1, zoom + delta * 0.01), 4);
-                    setZoom(newZoom);
-                    lastTouchDistance.current = dist;
+                } else if (e.touches.length === 2 && lastPinchDistance.current) {
+                    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    const rect = containerRef.current.getBoundingClientRect();
+                    const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+                    const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+                    const zoomChange = (dist - lastPinchDistance.current) * 0.005;
+                    updateZoom(zoom + zoomChange, { x: centerX, y: centerY });
+                    lastPinchDistance.current = dist;
                 }
             };
-
-            const handleTouchEnd = () => {
-                isDragging.current = false;
-                lastTouchDistance.current = null;
-            };
+            const handleTouchEnd = () => { isDragging.current = false; lastPinchDistance.current = null; };
 
             const handleImageClick = (e) => {
-                if (!imageRef.current) return;
+                if (!imageRef.current || isDragging.current || lastPinchDistance.current) return;
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTapTime.current;
+                if (!isDevMode && (tapLength > 300 || tapLength < 50)) { lastTapTime.current = currentTime; return; }
+                lastTapTime.current = 0; 
+                e.preventDefault();
 
                 const rect = imageRef.current.getBoundingClientRect();
                 const clickX = e.clientX - rect.left;
                 const clickY = e.clientY - rect.top;
-                
                 const xPercent = parseFloat(((clickX / rect.width) * 100).toFixed(1));
                 const yPercent = parseFloat(((clickY / rect.height) * 100).toFixed(1));
 
-                if (isDevMode) {
-                    setLastClickCoords({ x: xPercent, y: yPercent });
-                    console.log(`Clicked at: x: ${xPercent}, y: ${yPercent}`);
-                    return;
-                }
+                if (isDevMode) { setLastClickCoords({ x: xPercent, y: yPercent }); return; }
 
                 let hit = false;
                 const newTargets = targets.map(target => {
                     if (target.found) return target;
-                    const dist = Math.sqrt(
-                        Math.pow(xPercent - target.x, 2) + 
-                        Math.pow(yPercent - target.y, 2)
-                    );
+                    const dist = Math.sqrt(Math.pow(xPercent - target.x, 2) + Math.pow(yPercent - target.y, 2));
                     if (dist < target.radius) {
                         hit = true;
                         triggerFeedback(true, target.name);
@@ -200,173 +648,152 @@
                     }
                     return target;
                 });
-
-                if (hit) {
-                    setTargets(newTargets);
-                } else {
-                    triggerFeedback(false);
-                }
+                if (hit) setTargets(newTargets);
+                else triggerFeedback(false);
             };
 
             const triggerFeedback = (isCorrect, name = "") => {
-                if (isCorrect) {
-                    setMessage({ type: 'success', text: `Found: ${name}` });
-                } else {
-                    setMessage({ type: 'error', text: "Not that one..." });
-                }
+                if (isCorrect) setMessage({ type: 'success', text: `Found: ${name}` });
+                else setMessage({ type: 'error', text: "Not that one..." });
                 setTimeout(() => setMessage(null), 2000);
             };
 
             const remaining = targets.filter(t => !t.found).length;
 
             return (
-                <div className="flex flex-col h-screen w-full bg-[#f9f9f7] text-[#2c2c2c] overflow-hidden select-none">
-                    
-                    {/* HEADER */}
-                    <header className="flex justify-between items-center px-6 py-4 bg-white/80 backdrop-blur-sm z-10 border-b border-gray-100 shadow-sm">
-                        <div className="flex items-center gap-2 text-gray-400 w-20">
-                            <ArrowLeft size={20} />
-                            <span className="text-xs uppercase tracking-widest hidden sm:inline">Back</span>
+                <div className="flex flex-col h-[100dvh] w-full bg-[#1a1a1a] text-[#f9f9f7] overflow-hidden select-none relative animate-fade-in-game">
+                    {/* Header */}
+                    <header className="flex justify-between items-center px-6 py-4 bg-[#1a1a1a]/90 backdrop-blur-sm z-10 border-b border-white/10 shadow-sm shrink-0 landscape:hidden">
+                        <div className="flex items-center gap-2 text-gray-400 hover:text-white w-20 cursor-pointer" onClick={onBack}>
+                            <ArrowLeft size={20} className="text-gray-400" /><span className="text-xs uppercase tracking-widest hidden sm:inline">Back</span>
                         </div>
-                        
                         <div className="text-center flex flex-col items-center flex-1">
-                            <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-1">{GAME_DATA.appName}</span>
-                            <h1 className="font-serif text-lg tracking-wide font-medium text-gray-800 truncate max-w-[200px]">{GAME_DATA.chapter}</h1>
-                            <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">
-                                {remaining === 0 ? "Complete" : `${remaining} Items Left`}
-                            </p>
+                            <span className="text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1">Wizper</span>
+                            <h1 className="font-serif text-lg tracking-wide font-medium text-[#f9f9f7] truncate max-w-[200px]">{data.title}</h1>
+                            <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">{remaining === 0 ? "Complete" : `${remaining} Items Left`}</p>
                         </div>
-
                         <div className="w-20 flex justify-end">
-                            <button 
-                                onClick={() => setIsDevMode(!isDevMode)}
-                                className={`text-[10px] font-bold px-2 py-1 border rounded transition-colors ${isDevMode ? 'bg-red-500 text-white border-red-500' : 'bg-gray-100 text-gray-400 border-gray-200'}`}
-                            >
-                                {isDevMode ? "DEV ON" : "DEV"}
-                            </button>
+                            <button onClick={() => setIsBgmPlaying(!isBgmPlaying)} className="p-2 transition-colors active:scale-95 text-[#f9f9f7] hover:text-white">{isBgmPlaying ? <MusicNote size={20} className="text-[#f9f9f7]" /> : <MusicOff size={20} className="text-gray-600" />}</button>
                         </div>
                     </header>
 
-                    {/* GAME VIEWPORT */}
-                    <div 
-                        ref={containerRef}
-                        className="flex-1 relative overflow-hidden bg-[#e5e5e5] cursor-grab active:cursor-grabbing game-container"
-                        onMouseDown={handleMouseDown}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={handleMouseUp}
-                        onMouseLeave={handleMouseUp}
-                        onWheel={handleWheel}
-                        onTouchStart={handleTouchStart}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                    >
-                        <div 
-                            style={{
-                                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                                transformOrigin: '0 0',
-                                transition: isDragging.current ? 'none' : 'transform 0.1s ease-out',
-                                width: '100%',
-                                height: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}
-                        >
-                            <div className="relative shadow-2xl" style={{ width: 'auto', height: '80vh' }}>
-                                <img 
-                                    ref={imageRef}
-                                    src={GAME_DATA.imageUrl} 
-                                    alt="Hidden Objects Scene" 
-                                    className="max-h-full max-w-none object-contain pointer-events-auto"
-                                    draggable={false}
-                                    onClick={handleImageClick}
-                                />
-                                
-                                {/* DEV MODE: TARGET MARKERS */}
-                                {isDevMode && targets.map(t => (
-                                   <div key={t.id} className="absolute border-2 border-blue-500 rounded-full bg-blue-500/20 pointer-events-none"
-                                    style={{
-                                      left: `${t.x}%`, top: `${t.y}%`,
-                                      width: `${t.radius * 2}%`, height: `${t.radius * 2}%`,
-                                      transform: 'translate(-50%, -50%)',
-                                    }}
-                                  >
-                                    <span className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-[10px] px-1 rounded whitespace-nowrap z-50">
-                                      {t.name}
-                                    </span>
-                                  </div>
-                                ))}
+                    {/* Landscape HUD */}
+                    <div className="hidden landscape:flex fixed right-4 top-1/2 -translate-y-1/2 flex-col gap-4 z-50 pointer-events-none">
+                        <div className="bg-[#1a1a1a]/90 backdrop-blur-md p-3 rounded-2xl shadow-lg flex flex-col gap-6 items-center pointer-events-auto border border-white/10">
+                            <button onClick={() => setIsPlaying(!isPlaying)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all text-[#f9f9f7] border border-white/20 hover:bg-white/10 ${isPlaying ? 'animate-pulse' : ''}`}>{isPlaying ? <Pause size={18} className="text-[#f9f9f7]"/> : <Play size={18} className="text-[#f9f9f7]"/>}</button>
+                            <button onClick={() => setIsBgmPlaying(!isBgmPlaying)} className="w-10 h-10 flex items-center justify-center opacity-80 hover:opacity-100 text-[#f9f9f7]">{isBgmPlaying ? <MusicNote size={20} className="text-[#f9f9f7]"/> : <MusicOff size={20} className="text-gray-600" />}</button>
+                            <div className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center bg-white/5"><span className="font-serif text-sm font-bold text-[#f9f9f7]">{remaining}</span></div>
+                            <button onClick={onBack} className="text-gray-400 hover:text-white mt-2"><ArrowLeft size={20} className="text-gray-400"/></button>
+                        </div>
+                    </div>
 
-                                {/* DEV MODE: CLICK MARKER */}
-                                {isDevMode && lastClickCoords && (
-                                   <div className="absolute w-4 h-4 bg-red-500 rounded-full pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-50 shadow-lg border-2 border-white"
-                                    style={{ left: `${lastClickCoords.x}%`, top: `${lastClickCoords.y}%` }}
-                                  />
-                                )}
+                    {/* Viewport */}
+                    <div ref={containerRef} className="flex-1 relative overflow-hidden bg-[#0a0a0a] cursor-grab active:cursor-grabbing game-viewport" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={handleWheel} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+                        <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', willChange: 'transform' }}>
+                            <div className="relative shadow-2xl" style={{ width: 'auto', height: '80vh' }}>
+                                <img ref={imageRef} src={data.imageUrl} alt="Hidden Objects Scene" className="max-h-full max-w-none object-contain pointer-events-auto" draggable={false} onClick={handleImageClick}/>
+                                {isDevMode && targets.map(t => (<div key={t.id} className="absolute border-2 border-blue-500 rounded-full bg-blue-500/20 pointer-events-none" style={{ left: `${t.x}%`, top: `${t.y}%`, width: `${t.radius * 2}%`, height: `${t.radius * 2}%`, transform: 'translate(-50%, -50%)', }}><span className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-[10px] px-1 rounded whitespace-nowrap z-50">{t.name}</span></div>))}
+                                {isDevMode && lastClickCoords && (<div className="absolute w-4 h-4 bg-red-500 rounded-full pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-50 shadow-lg border-2 border-white" style={{ left: `${lastClickCoords.x}%`, top: `${lastClickCoords.y}%` }}/>)}
                             </div>
                         </div>
-
-                        {/* DEV MODE: COORD DISPLAY */}
-                        {isDevMode && lastClickCoords && (
-                            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
-                                <div className="bg-red-500 text-white px-4 py-2 rounded shadow-lg font-mono text-xs">
-                                    x: {lastClickCoords.x}, y: {lastClickCoords.y}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* FEEDBACK OVERLAY */}
-                        {!isDevMode && message && (
-                            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20 w-full flex justify-center">
-                                <div className={`px-6 py-3 shadow-xl flex items-center gap-3 transition-all animate-fade-in-up ${
-                                    message.type === 'success' 
-                                        ? 'bg-[#2c2c2c] text-white' 
-                                        : 'bg-white text-[#2c2c2c] border border-gray-200'
-                                }`}>
-                                    {message.type === 'success' && <Sparkles size={16} className="text-yellow-400" />}
-                                    <span className="font-serif italic text-sm tracking-wide">{message.text}</span>
+                        {isDevMode && lastClickCoords && (<div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50"><div className="bg-red-500 text-white px-4 py-2 rounded shadow-lg font-mono text-xs">x: {lastClickCoords.x}, y: {lastClickCoords.y}</div></div>)}
+                        {!isDevMode && message && (<div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20 w-full flex justify-center"><div className={`px-6 py-3 shadow-xl flex items-center gap-3 transition-all animate-fade-in-up ${message.type === 'success' ? 'bg-[#f9f9f7] text-[#1a1a1a]' : 'bg-[#333] text-white border border-white/20'}`}>{message.type === 'success' && <Sparkles size={16} fill="currentColor" />}<span className="font-serif italic text-sm tracking-wide">{message.text}</span></div></div>)}
+                        
+                        {/* Complete Overlay */}
+                        {isComplete && (
+                            <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-8 animate-fade-in">
+                                <div className="text-center max-w-sm">
+                                    <h2 className="text-3xl font-serif text-[#f9f9f7] mb-2 tracking-widest">Complete</h2>
+                                    <div className="w-12 h-px bg-white/50 mx-auto mb-6"></div>
+                                    <p className="font-script text-lg text-gray-300 italic mb-10 leading-relaxed">"{data.completionText}"</p>
+                                    <button onClick={() => onComplete(chapterId)} className="group flex items-center justify-center gap-3 px-8 py-3 border border-white/30 hover:bg-white/10 transition-all rounded-sm mx-auto">
+                                        <span className="text-xs uppercase tracking-[0.2em] text-white group-hover:text-[#f9f9f7]">Next Chapter</span>
+                                        <NextIcon size={16} className="text-white/70 group-hover:translate-x-1 transition-transform"/>
+                                    </button>
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    {/* FOOTER */}
-                    <footer className="bg-white px-8 py-6 pb-8 border-t border-gray-100 flex justify-between items-center z-10 shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
-                        <button 
-                            onClick={() => setIsPlaying(!isPlaying)}
-                            className={`flex items-center gap-3 transition-colors ${isPlaying ? 'text-gray-400' : 'text-black'}`}
-                        >
-                            <div className={`w-12 h-12 rounded-full border border-gray-300 flex items-center justify-center transition-all ${isPlaying ? 'animate-pulse bg-gray-50' : 'hover:bg-gray-50'}`}>
-                                {isPlaying ? <Pause size={20} className="opacity-50" /> : <Play size={20} />}
-                            </div>
-                            <div className="flex flex-col text-left">
-                                <span className="text-[10px] uppercase tracking-widest text-gray-400">The Master</span>
-                                <span className="font-serif text-sm italic">
-                                    {isPlaying ? "Speaking..." : "Listen to order"}
-                                </span>
-                            </div>
-                        </button>
-
-                        <button 
-                            onClick={() => setShowHint(!showHint)}
-                            className="p-3 text-gray-400 hover:text-gray-800 transition-colors active:scale-95"
-                        >
-                            <HelpCircle size={22} strokeWidth={1.5} />
-                        </button>
+                    {/* Footer (Portrait) */}
+                    <footer className="bg-[#1a1a1a] px-8 py-6 pb-safe border-t border-white/10 flex justify-between items-center z-10 shadow-[0_-5px_15px_rgba(0,0,0,0.2)] shrink-0 landscape:hidden">
+                        <button onClick={() => setIsPlaying(!isPlaying)} className={`flex items-center gap-3 transition-colors ${isPlaying ? 'text-gray-400' : 'text-[#f9f9f7]'}`}><div className={`w-12 h-12 rounded-full border border-white/20 flex items-center justify-center transition-all ${isPlaying ? 'animate-pulse bg-white/10' : 'hover:bg-white/5'}`}>{isPlaying ? <Pause size={16} className="text-[#f9f9f7]"/> : <Play size={16} className="text-[#f9f9f7]"/>}</div><div className="flex flex-col text-left"><span className="text-[10px] uppercase tracking-widest text-gray-500">The Master</span><span className="font-serif text-sm italic">{isPlaying ? "Speaking..." : "Listen to order"}</span></div></button>
+                        <button onClick={() => setIsDevMode(!isDevMode)} className={`text-[9px] font-bold px-2 py-1 rounded transition-colors ${isDevMode ? 'bg-red-500 text-white' : 'text-gray-500 hover:text-gray-300'}`}>{isDevMode ? "DEV ON" : "DEV"}</button>
                     </footer>
-
-                    {/* HINT OVERLAY */}
-                    {showHint && (
-                        <div className="absolute inset-x-0 bottom-24 p-4 z-20 flex justify-center animate-fade-in-up">
-                            <div className="bg-white/90 backdrop-blur border border-gray-200 p-6 shadow-lg max-w-sm w-full text-center">
-                                <h4 className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Transcript</h4>
-                                <p className="font-serif text-sm italic leading-relaxed text-gray-700">
-                                    "{GAME_DATA.script}"
-                                </p>
-                            </div>
-                        </div>
-                    )}
+                    <style>{`
+                        .animate-fade-in-game { animation: fadeIn 1.5s ease-out; }
+                        .animate-fade-in-up { animation: fadeInUp 0.3s ease-out forwards; }
+                        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                    `}</style>
                 </div>
+            );
+        };
+
+        // ----------------------------------------------------------------------
+        // MAIN APP CONTROLLER
+        // ----------------------------------------------------------------------
+        const App = () => {
+            const [screen, setScreen] = useState('HOME'); // HOME, STORY, GAME
+            const [activeChapter, setActiveChapter] = useState(1);
+            
+            // Auth State
+            const [user, setUser] = useState(null);
+            const [clearedChapters, setClearedChapters] = useState([1]);
+
+            // Sync with Firebase
+            useEffect(() => {
+                if (!auth) return;
+                const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+                    setUser(currentUser);
+                    if (currentUser) {
+                        const docRef = db.collection("users").doc(currentUser.uid);
+                        const doc = await docRef.get();
+                        if (doc.exists) setClearedChapters(doc.data().clearedChapters || [1]);
+                    }
+                });
+                return () => unsubscribe();
+            }, []);
+
+            const login = async () => { if(auth) await auth.signInWithPopup(googleProvider); };
+            const logout = async () => { if(auth) await auth.signOut(); setClearedChapters([1]); };
+
+            // Navigation Handler
+            const navigate = (targetScreen, chapterId = null) => {
+                if (chapterId) setActiveChapter(chapterId);
+                setScreen(targetScreen);
+            };
+
+            // Chapter Complete Handler
+            const handleChapterComplete = async (completedChapterId) => {
+                const nextChapterId = completedChapterId + 1;
+                
+                // Unlock next chapter locally
+                if (!clearedChapters.includes(nextChapterId)) {
+                    const newCleared = [...clearedChapters, nextChapterId];
+                    setClearedChapters(newCleared);
+                    // Sync to Cloud
+                    if (user && db) {
+                        try {
+                            await db.collection("users").doc(user.uid).set({ clearedChapters: newCleared }, { merge: true });
+                        } catch (e) { console.error("Cloud Save Error", e); }
+                    }
+                }
+
+                // Move to next story or return home if end
+                if (CHAPTERS_DB[nextChapterId]) {
+                    navigate('STORY', nextChapterId);
+                } else {
+                    alert("Congratulations! You've reached the end of current content.");
+                    navigate('HOME');
+                }
+            };
+
+            return (
+                <>
+                    {screen === 'HOME' && <HomeScreen onNavigate={navigate} user={user} login={login} logout={logout} clearedChapters={clearedChapters} />}
+                    {screen === 'STORY' && <StoryScreen chapterId={activeChapter} onStart={() => navigate('GAME')} />}
+                    {screen === 'GAME' && <GameScreen chapterId={activeChapter} onBack={() => navigate('HOME')} onComplete={handleChapterComplete} />}
+                </>
             );
         };
 
@@ -375,3 +802,5 @@
     </script>
 </body>
 </html>
+
+
