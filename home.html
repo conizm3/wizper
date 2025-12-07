@@ -25,21 +25,35 @@
             font-family: 'Playfair Display', serif;
             font-style: italic;
         }
-        .fade-in {
-            animation: fadeIn 1.5s ease-out forwards;
-        }
-        .slide-up {
-            animation: slideUp 1s ease-out forwards;
+        
+        /* --- アニメーション定義 --- */
+
+        /* 1. ロゴなどのフェードイン */
+        .anim-fade-in {
             opacity: 0;
-            animation-delay: 0.5s;
+            animation: fadeIn 3.5s ease-out forwards;
         }
+        
+        /* 2. メニュー全体の遅延フェードイン */
+        .anim-fade-in-delayed {
+            opacity: 0;
+            animation: fadeIn 3.5s ease-out forwards;
+            animation-delay: 1.2s; /* ロゴより遅れて開始 */
+        }
+
+        /* 共通：純粋なフェードイン（移動なし） */
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
         }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        /* 3. すりガラスパネル（アニメーションなし・固定） */
+        /* 透明度が上がると同時に、このぼかし効果も自然に見えてきます */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03); /* 薄い白 */
+            backdrop-filter: blur(8px);             /* ぼかし */
+            -webkit-backdrop-filter: blur(8px);     /* Safari用 */
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
         
         /* Custom Scrollbar */
@@ -58,7 +72,6 @@
         .pb-safe {
             padding-bottom: env(safe-area-inset-bottom, 20px);
         }
-        /* Top safe area for overlays */
         .pt-safe {
             padding-top: max(3rem, env(safe-area-inset-top));
         }
@@ -101,7 +114,8 @@
             const handleStartGame = () => {
                 setShowTransition(true);
                 setTimeout(() => {
-                    // Navigate to index.html
+                    // Navigate to index.html logic would be here
+                    // e.g., window.location.href = 'index.html';
                     console.log("Navigating...");
                     setShowTransition(false);
                 }, 1000);
@@ -120,48 +134,51 @@
                         <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a] via-transparent to-[#1a1a1a]"></div>
                     </div>
 
-                    {/* Logo Area */}
-                    <div className="z-10 text-center mt-8 fade-in shrink-0">
+                    {/* Logo Area (Initial Fade In) */}
+                    <div className="z-10 text-center mt-8 anim-fade-in shrink-0">
                         <p className="text-[10px] tracking-[0.4em] uppercase text-gray-400 mb-4">Audio Hidden Object Game</p>
                         <h1 className="text-5xl md:text-7xl font-serif text-[#f9f9f7] tracking-wider mb-2">Wizper</h1>
                         <p className="font-script text-xl text-gray-400 italic opacity-80">- The Apprentice's Log -</p>
                     </div>
 
-                    {/* Main Buttons (Visible only when view is main) */}
-                    <div className={`z-10 w-full max-w-md slide-up mb-safe transition-opacity duration-300 ${view === 'main' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-                        <div className="flex flex-col gap-6 items-center">
-                            <p className="text-xs text-center leading-relaxed text-gray-400 max-w-xs mb-4 font-serif italic">
-                                "Listen carefully, apprentice.<br/>My eyes aren't what they used to be..."
-                            </p>
+                    {/* Main Buttons Container (Initial Fade In Delayed - No Slide) */}
+                    <div className="z-10 w-full max-w-md anim-fade-in-delayed mb-safe">
+                        <div className={`transition-opacity duration-1000 w-full ${view === 'main' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                            <div className="flex flex-col gap-6 items-center">
+                                <p className="text-xs text-center leading-relaxed text-gray-400 max-w-xs mb-4 font-serif italic">
+                                    "Listen carefully, apprentice.<br/>My eyes aren't what they used to be..."
+                                </p>
 
-                            <button 
-                                onClick={handleStartGame}
-                                className="w-full py-4 border border-white/20 bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-all text-sm tracking-[0.2em] uppercase font-serif"
-                            >
-                                Open Journal
-                            </button>
-                            
-                            <div className="flex gap-4 w-full">
+                                {/* 最初からガラス効果をつけ、Opacityでじわーっと表示 */}
                                 <button 
-                                    onClick={() => setView('chapters')}
-                                    className="flex-1 py-3 border border-white/10 hover:bg-white/5 transition-all text-xs tracking-widest uppercase flex justify-center items-center gap-2"
+                                    onClick={handleStartGame}
+                                    className="w-full py-4 glass-panel hover:bg-white/10 transition-all text-sm tracking-[0.2em] uppercase font-serif text-[#f9f9f7]"
                                 >
-                                    <BookIcon size={14} /> Log
+                                    Open Journal
                                 </button>
+                                
+                                <div className="flex gap-4 w-full">
+                                    <button 
+                                        onClick={() => setView('chapters')}
+                                        className="flex-1 py-3 border border-white/10 hover:bg-white/5 transition-all text-xs tracking-widest uppercase flex justify-center items-center gap-2"
+                                    >
+                                        <BookIcon size={14} /> Log
+                                    </button>
+                                    <button 
+                                        onClick={() => setView('howto')}
+                                        className="flex-1 py-3 border border-white/10 hover:bg-white/5 transition-all text-xs tracking-widest uppercase flex justify-center items-center gap-2"
+                                    >
+                                        <EarIcon size={14} /> Guide
+                                    </button>
+                                </div>
+                                
                                 <button 
-                                    onClick={() => setView('howto')}
-                                    className="flex-1 py-3 border border-white/10 hover:bg-white/5 transition-all text-xs tracking-widest uppercase flex justify-center items-center gap-2"
+                                    onClick={() => setView('settings')}
+                                    className="mt-2 text-gray-500 hover:text-white transition-colors"
                                 >
-                                    <EarIcon size={14} /> Guide
+                                    <SettingsIcon size={18} />
                                 </button>
                             </div>
-                            
-                            <button 
-                                onClick={() => setView('settings')}
-                                className="mt-2 text-gray-500 hover:text-white transition-colors"
-                            >
-                                <SettingsIcon size={18} />
-                            </button>
                         </div>
                     </div>
 
@@ -190,7 +207,7 @@
                         </div>
                     )}
 
-                    {/* 2. GUIDE (HOW TO PLAY) - Minimal Style */}
+                    {/* 2. GUIDE (HOW TO PLAY) */}
                     {view === 'howto' && (
                         <div className="bg-[#1a1a1a]/95 absolute inset-0 z-30 flex flex-col pt-safe pb-safe animate-fade-in-up">
                             <div className="flex justify-between items-center px-8 pb-4 border-b border-white/10 shrink-0">
@@ -198,7 +215,6 @@
                                 <button onClick={() => setView('main')} className="text-xs uppercase tracking-widest text-gray-400 p-2">Close</button>
                             </div>
                             
-                            {/* Layout Changed: pt-12 for better spacing */}
                             <div className="flex-1 overflow-y-auto custom-scroll p-6 flex flex-col justify-start pt-12 items-center">
                                 <div className="flex flex-col gap-8 items-center text-center">
                                     
@@ -208,7 +224,6 @@
                                         </p>
                                     </div>
 
-                                    {/* Steps Container (Minimal - No borders) */}
                                     <div className="flex flex-col gap-6 w-full max-w-xs px-2">
                                         {/* Step 1 */}
                                         <div className="flex items-center gap-5 text-left">
@@ -258,7 +273,6 @@
                             </div>
                             <div className="flex-1 overflow-y-auto custom-scroll p-8 flex flex-col gap-8">
                                 
-                                {/* Subtitle Setting */}
                                 <div className="flex flex-col gap-3">
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm tracking-widest">Subtitles</span>
@@ -274,10 +288,8 @@
                                     </p>
                                 </div>
 
-                                {/* Divider */}
                                 <div className="h-px bg-white/10 w-full"></div>
 
-                                {/* Links */}
                                 <div className="flex flex-col gap-6 items-center mt-4">
                                     <a href="#" className="text-xs text-gray-500 hover:text-white underline underline-offset-4 decoration-gray-700 transition-colors">
                                         Privacy Policy
