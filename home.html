@@ -17,6 +17,9 @@
             background-color: #1a1a1a;
             color: #f9f9f7;
             -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
         }
         h1, h2, .font-serif {
             font-family: 'Cinzel', serif;
@@ -27,33 +30,73 @@
         }
         
         /* --- アニメーション定義 --- */
-
-        /* 1. ロゴなどのフェードイン */
-        .anim-fade-in {
-            opacity: 0;
-            animation: fadeIn 3.5s ease-out forwards;
-        }
         
-        /* 2. メニュー全体の遅延フェードイン */
-        .anim-fade-in-delayed {
-            opacity: 0;
-            animation: fadeIn 3.5s ease-out forwards;
-            animation-delay: 1.2s; /* ロゴより遅れて開始 */
-        }
-
-        /* 共通：純粋なフェードイン（移動なし） */
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
         }
 
-        /* 3. すりガラスパネル（アニメーションなし・固定） */
-        /* 透明度が上がると同時に、このぼかし効果も自然に見えてきます */
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.03); /* 薄い白 */
-            backdrop-filter: blur(8px);             /* ぼかし */
-            -webkit-backdrop-filter: blur(8px);     /* Safari用 */
+        /* 下からフワッと浮き上がる */
+        @keyframes floatUp {
+            0% { 
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* --- 各要素のアニメーションクラス --- */
+
+        /* 基本フェードイン (タイトル等) */
+        .anim-fade-in {
+            opacity: 0;
+            animation: fadeIn 2.0s ease-out forwards;
+        }
+
+        /* 背景専用：じわーっとゆっくりフェードイン */
+        .anim-fade-in-bg {
+            opacity: 0;
+            animation: fadeIn 5.0s ease-out forwards; /* 5秒かけてじっくり表示 */
+        }
+
+        /* すりガラスボタン（下から浮き上がる演出） */
+        .glass-float-container {
+            /* ぼかしは常時ON */
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(5px);             
+            -webkit-backdrop-filter: blur(5px);     
             border: 1px solid rgba(255, 255, 255, 0.15);
+            
+            /* 初期状態：見えない・下にずれている */
+            opacity: 0;
+            
+            /* アニメーション適用：遅延はJS側で制御しやすくするためCSSでは定義だけ */
+            animation: floatUp 1.5s ease-out forwards;
+            
+            /* 描画安定化 */
+            transform: translateZ(0); 
+        }
+
+        /* --- オーバーレイ --- */
+        
+        .overlay-container {
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+            background-color: rgba(26, 26, 26, 0.98);
+            padding-top: max(3rem, env(safe-area-inset-top));
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease-out;
+        }
+        
+        .overlay-container.active {
+            opacity: 1;
+            pointer-events: auto;
         }
         
         /* Custom Scrollbar */
@@ -69,11 +112,8 @@
         }
         
         /* Safe area padding */
-        .pb-safe {
-            padding-bottom: env(safe-area-inset-bottom, 20px);
-        }
-        .pt-safe {
-            padding-top: max(3rem, env(safe-area-inset-top));
+        .mb-safe {
+            margin-bottom: env(safe-area-inset-bottom, 20px);
         }
     </style>
 </head>
@@ -83,8 +123,12 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
+        // --- ICONS ---
         const SettingsIcon = ({ size = 20 }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+            </svg>
         );
         const BookIcon = ({ size = 20 }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
@@ -110,22 +154,34 @@
             const [view, setView] = useState('main'); 
             const [showTransition, setShowTransition] = useState(false);
             const [subtitles, setSubtitles] = useState(false);
+            
+            // 初回ロード制御
+            const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+            useEffect(() => {
+                const timer = setTimeout(() => {
+                    setIsInitialLoad(false);
+                }, 6000); // 背景が5秒なので、余裕を持って少し長めに
+                return () => clearTimeout(timer);
+            }, []);
 
             const handleStartGame = () => {
                 setShowTransition(true);
                 setTimeout(() => {
-                    // Navigate to index.html logic would be here
-                    // e.g., window.location.href = 'index.html';
                     console.log("Navigating...");
                     setShowTransition(false);
                 }, 1000);
             };
 
+            // アニメーションクラスヘルパー
+            const getGlassClass = () => isInitialLoad ? 'glass-float-container' : 'glass-float-container !animate-none !opacity-100';
+            const getFadeClass = (animClass) => isInitialLoad ? animClass : 'opacity-100';
+
             return (
-                <div className="relative w-full h-[100dvh] overflow-hidden flex flex-col items-center justify-between py-12 px-6">
+                <div className="relative w-full h-[100dvh] flex flex-col justify-between py-12 px-6 overflow-hidden">
                     
-                    {/* Background */}
-                    <div className="absolute inset-0 z-0">
+                    {/* Background: Delay 0s, Duration 5s (ゆっくりじわーっと) */}
+                    <div className={`absolute inset-0 z-0 pointer-events-none ${getFadeClass('anim-fade-in-bg')}`} style={isInitialLoad ? {animationDelay: '0s'} : {}}>
                         <img 
                             src="https://images.unsplash.com/photo-1535905557558-afc4877a26fc?q=80&w=2400&auto=format&fit=crop" 
                             alt="Background" 
@@ -134,44 +190,65 @@
                         <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a] via-transparent to-[#1a1a1a]"></div>
                     </div>
 
-                    {/* Logo Area (Initial Fade In) */}
-                    <div className="z-10 text-center mt-8 anim-fade-in shrink-0">
+                    {/* --- TOP SECTION (Logo) --- */}
+                    {/* Title: Delay 1.5s */}
+                    <div 
+                        className={`z-10 text-center mt-8 shrink-0 ${getFadeClass('anim-fade-in')}`}
+                        style={isInitialLoad ? {animationDelay: '1.5s'} : {}}
+                    >
                         <p className="text-[10px] tracking-[0.4em] uppercase text-gray-400 mb-4">Audio Hidden Object Game</p>
                         <h1 className="text-5xl md:text-7xl font-serif text-[#f9f9f7] tracking-wider mb-2">Wizper</h1>
                         <p className="font-script text-xl text-gray-400 italic opacity-80">- The Apprentice's Log -</p>
                     </div>
 
-                    {/* Main Buttons Container (Initial Fade In Delayed - No Slide) */}
-                    <div className="z-10 w-full max-w-md anim-fade-in-delayed mb-safe">
-                        <div className={`transition-opacity duration-1000 w-full ${view === 'main' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-                            <div className="flex flex-col gap-6 items-center">
-                                <p className="text-xs text-center leading-relaxed text-gray-400 max-w-xs mb-4 font-serif italic">
-                                    "Listen carefully, apprentice.<br/>My eyes aren't what they used to be..."
-                                </p>
+                    {/* --- BOTTOM SECTION (Controls) --- */}
+                    <div className="z-10 w-full max-w-md mx-auto mb-safe flex flex-col items-center gap-6">
+                        
+                        <div className="w-full flex flex-col items-center gap-6">
+                            
+                            {/* Lead Text: Delay 2.5s */}
+                            <p 
+                                className={`text-xs text-center leading-relaxed text-gray-400 max-w-xs font-serif italic ${getFadeClass('anim-fade-in')}`} 
+                                style={isInitialLoad ? {animationDelay: '2.5s'} : {}}
+                            >
+                                "Listen carefully, apprentice.<br/>My eyes aren't what they used to be..."
+                            </p>
 
-                                {/* 最初からガラス効果をつけ、Opacityでじわーっと表示 */}
+                            {/* Open Journal Button: Delay 2.8s */}
+                            <div className="w-full">
                                 <button 
                                     onClick={handleStartGame}
-                                    className="w-full py-4 glass-panel hover:bg-white/10 transition-all text-sm tracking-[0.2em] uppercase font-serif text-[#f9f9f7]"
+                                    className={`w-full py-4 hover:bg-white/10 transition-colors text-sm tracking-[0.2em] uppercase font-serif text-[#f9f9f7] ${getGlassClass()}`}
+                                    style={isInitialLoad ? {animationDelay: '2.8s'} : {}}
                                 >
                                     Open Journal
                                 </button>
-                                
-                                <div className="flex gap-4 w-full">
-                                    <button 
-                                        onClick={() => setView('chapters')}
-                                        className="flex-1 py-3 border border-white/10 hover:bg-white/5 transition-all text-xs tracking-widest uppercase flex justify-center items-center gap-2"
-                                    >
-                                        <BookIcon size={14} /> Log
-                                    </button>
-                                    <button 
-                                        onClick={() => setView('howto')}
-                                        className="flex-1 py-3 border border-white/10 hover:bg-white/5 transition-all text-xs tracking-widest uppercase flex justify-center items-center gap-2"
-                                    >
-                                        <EarIcon size={14} /> Guide
-                                    </button>
-                                </div>
-                                
+                            </div>
+                            
+                            {/* Sub Buttons: Delay 3.0s */}
+                            <div 
+                                className={`flex gap-4 w-full ${getFadeClass('anim-fade-in')}`} 
+                                style={isInitialLoad ? {animationDelay: '3.0s'} : {}}
+                            >
+                                <button 
+                                    onClick={() => setView('chapters')}
+                                    className="flex-1 py-3 border border-white/10 hover:bg-white/5 transition-colors text-xs tracking-widest uppercase flex justify-center items-center gap-2"
+                                >
+                                    <BookIcon size={14} /> Log
+                                </button>
+                                <button 
+                                    onClick={() => setView('howto')}
+                                    className="flex-1 py-3 border border-white/10 hover:bg-white/5 transition-colors text-xs tracking-widest uppercase flex justify-center items-center gap-2"
+                                >
+                                    <EarIcon size={14} /> Guide
+                                </button>
+                            </div>
+                            
+                            {/* Settings: Delay 3.2s */}
+                            <div 
+                                className={`${getFadeClass('anim-fade-in')}`} 
+                                style={isInitialLoad ? {animationDelay: '3.2s'} : {}}
+                            >
                                 <button 
                                     onClick={() => setView('settings')}
                                     className="mt-2 text-gray-500 hover:text-white transition-colors"
@@ -185,128 +262,119 @@
                     {/* --- OVERLAYS --- */}
                     
                     {/* 1. LOG (CHAPTERS) */}
-                    {view === 'chapters' && (
-                        <div className="bg-[#1a1a1a]/95 absolute inset-0 z-30 flex flex-col pt-safe pb-safe animate-fade-in-up">
-                            <div className="flex justify-between items-center px-8 pb-4 border-b border-white/10 shrink-0">
-                                <h2 className="text-lg font-serif tracking-widest">Journal Log</h2>
-                                <button onClick={() => setView('main')} className="text-xs uppercase tracking-widest text-gray-400 p-2">Close</button>
-                            </div>
-                            <div className="flex-1 overflow-y-auto custom-scroll flex flex-col gap-4 p-8">
-                                <p className="text-xs text-gray-500 font-serif italic mb-2 text-center">Record of assigned tasks.</p>
-                                {CHAPTERS.map(chapter => (
-                                    <div key={chapter.id} className={`p-4 border ${chapter.locked ? 'border-white/5 text-gray-600' : 'border-white/20 bg-white/5'} transition-all`}>
-                                        <div className="flex justify-between items-start mb-1">
-                                            <span className="text-[10px] uppercase tracking-widest opacity-50">Chapter {chapter.id}</span>
-                                            {chapter.locked ? <LockIcon size={12}/> : <span className="text-[10px] text-gray-400">{chapter.progress}</span>}
-                                        </div>
-                                        <h3 className="font-serif text-lg mb-1">{chapter.title}</h3>
-                                        <p className="font-script text-sm italic opacity-60">{chapter.sub}</p>
-                                    </div>
-                                ))}
-                            </div>
+                    <div className={`overlay-container flex flex-col ${view === 'chapters' ? 'active' : ''}`}>
+                        <div className="flex justify-between items-center px-8 pb-4 border-b border-white/10 shrink-0">
+                            <h2 className="text-lg font-serif tracking-widest">Journal Log</h2>
+                            <button onClick={() => setView('main')} className="text-xs uppercase tracking-widest text-gray-400 p-2">Close</button>
                         </div>
-                    )}
+                        <div className="flex-1 overflow-y-auto custom-scroll flex flex-col gap-4 p-8">
+                            <p className="text-xs text-gray-500 font-serif italic mb-2 text-center">Record of assigned tasks.</p>
+                            {CHAPTERS.map(chapter => (
+                                <div key={chapter.id} className={`p-4 border ${chapter.locked ? 'border-white/5 text-gray-600' : 'border-white/20 bg-white/5'} transition-all`}>
+                                    <div className="flex justify-between items-start mb-1">
+                                        <span className="text-[10px] uppercase tracking-widest opacity-50">Chapter {chapter.id}</span>
+                                        {chapter.locked ? <LockIcon size={12}/> : <span className="text-[10px] text-gray-400">{chapter.progress}</span>}
+                                    </div>
+                                    <h3 className="font-serif text-lg mb-1">{chapter.title}</h3>
+                                    <p className="font-script text-sm italic opacity-60">{chapter.sub}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
 
                     {/* 2. GUIDE (HOW TO PLAY) */}
-                    {view === 'howto' && (
-                        <div className="bg-[#1a1a1a]/95 absolute inset-0 z-30 flex flex-col pt-safe pb-safe animate-fade-in-up">
-                            <div className="flex justify-between items-center px-8 pb-4 border-b border-white/10 shrink-0">
-                                <h2 className="text-lg font-serif tracking-widest">Guide</h2>
-                                <button onClick={() => setView('main')} className="text-xs uppercase tracking-widest text-gray-400 p-2">Close</button>
-                            </div>
-                            
-                            <div className="flex-1 overflow-y-auto custom-scroll p-6 flex flex-col justify-start pt-12 items-center">
-                                <div className="flex flex-col gap-8 items-center text-center">
-                                    
-                                    <div className="max-w-xs shrink-0">
-                                        <p className="text-sm text-gray-400 italic mb-2">
-                                            "Find the hidden objects."
-                                        </p>
-                                    </div>
-
-                                    <div className="flex flex-col gap-6 w-full max-w-xs px-2">
-                                        {/* Step 1 */}
-                                        <div className="flex items-center gap-5 text-left">
-                                            <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center shrink-0">
-                                                <EarIcon size={20} />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-xs font-bold uppercase tracking-widest mb-1">Listen</h3>
-                                                <p className="text-xs text-gray-400 font-serif italic">Hear the voice instructions.</p>
-                                            </div>
-                                        </div>
-                                        
-                                        {/* Step 2 */}
-                                        <div className="flex items-center gap-5 text-left">
-                                            <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center shrink-0">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                                            </div>
-                                            <div>
-                                                <h3 className="text-xs font-bold uppercase tracking-widest mb-1">Search</h3>
-                                                <p className="text-xs text-gray-400 font-serif italic">Pinch to zoom. Swipe to pan.</p>
-                                            </div>
-                                        </div>
-                                        
-                                        {/* Step 3 */}
-                                        <div className="flex items-center gap-5 text-left">
-                                            <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center shrink-0">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-                                            </div>
-                                            <div>
-                                                <h3 className="text-xs font-bold uppercase tracking-widest mb-1">Select</h3>
-                                                <p className="text-xs text-gray-400 font-serif italic">Double tap to collect the object.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                </div>
-                            </div>
+                    <div className={`overlay-container flex flex-col ${view === 'howto' ? 'active' : ''}`}>
+                        <div className="flex justify-between items-center px-8 pb-4 border-b border-white/10 shrink-0">
+                            <h2 className="text-lg font-serif tracking-widest">Guide</h2>
+                            <button onClick={() => setView('main')} className="text-xs uppercase tracking-widest text-gray-400 p-2">Close</button>
                         </div>
-                    )}
-
-                    {/* 3. SETTINGS */}
-                    {view === 'settings' && (
-                        <div className="bg-[#1a1a1a]/95 absolute inset-0 z-30 flex flex-col pt-safe pb-safe animate-fade-in-up">
-                            <div className="flex justify-between items-center px-8 pb-4 border-b border-white/10 shrink-0">
-                                <h2 className="text-lg font-serif tracking-widest">Settings</h2>
-                                <button onClick={() => setView('main')} className="text-xs uppercase tracking-widest text-gray-400 p-2">Close</button>
-                            </div>
-                            <div className="flex-1 overflow-y-auto custom-scroll p-8 flex flex-col gap-8">
+                        
+                        <div className="flex-1 overflow-y-auto custom-scroll p-6 flex flex-col justify-start pt-12 items-center">
+                            <div className="flex flex-col gap-8 items-center text-center">
                                 
-                                <div className="flex flex-col gap-3">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm tracking-widest">Subtitles</span>
-                                        <button 
-                                            onClick={() => setSubtitles(!subtitles)}
-                                            className={`text-xs px-3 py-1 border transition-all ${subtitles ? 'bg-white text-black border-white' : 'text-gray-400 border-gray-600'}`}
-                                        >
-                                            {subtitles ? 'ON' : 'OFF'}
-                                        </button>
-                                    </div>
-                                    <p className="text-[10px] text-gray-500 italic leading-relaxed">
-                                        * We recommend playing with subtitles OFF for the best immersive experience.
+                                <div className="max-w-xs shrink-0">
+                                    <p className="text-sm text-gray-400 italic mb-2">
+                                        "Find the hidden objects."
                                     </p>
                                 </div>
 
-                                <div className="h-px bg-white/10 w-full"></div>
-
-                                <div className="flex flex-col gap-6 items-center mt-4">
-                                    <a href="#" className="text-xs text-gray-500 hover:text-white underline underline-offset-4 decoration-gray-700 transition-colors">
-                                        Privacy Policy
-                                    </a>
-
-                                    <button className="flex items-center gap-3 px-6 py-3 border border-yellow-700/50 text-yellow-600 hover:bg-yellow-900/10 hover:text-yellow-500 transition-all rounded-sm group">
-                                        <CoffeeIcon size={16} />
-                                        <span className="text-xs uppercase tracking-widest">Gift a Coffee</span>
-                                    </button>
+                                <div className="flex flex-col gap-6 w-full max-w-xs px-2">
+                                    <div className="flex items-center gap-5 text-left">
+                                        <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center shrink-0">
+                                            <EarIcon size={20} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xs font-bold uppercase tracking-widest mb-1">Listen</h3>
+                                            <p className="text-xs text-gray-400 font-serif italic">Hear the voice instructions.</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-5 text-left">
+                                        <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xs font-bold uppercase tracking-widest mb-1">Search</h3>
+                                            <p className="text-xs text-gray-400 font-serif italic">Pinch to zoom. Swipe to pan.</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-5 text-left">
+                                        <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xs font-bold uppercase tracking-widest mb-1">Select</h3>
+                                            <p className="text-xs text-gray-400 font-serif italic">Double tap to collect the object.</p>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="mt-auto pt-8 text-center">
-                                    <p className="text-[10px] text-gray-700 font-mono">v0.1.0 Beta</p>
-                                </div>
                             </div>
                         </div>
-                    )}
+                    </div>
+
+                    {/* 3. SETTINGS */}
+                    <div className={`overlay-container flex flex-col ${view === 'settings' ? 'active' : ''}`}>
+                        <div className="flex justify-between items-center px-8 pb-4 border-b border-white/10 shrink-0">
+                            <h2 className="text-lg font-serif tracking-widest">Settings</h2>
+                            <button onClick={() => setView('main')} className="text-xs uppercase tracking-widest text-gray-400 p-2">Close</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scroll p-8 flex flex-col gap-8">
+                            
+                            <div className="flex flex-col gap-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm tracking-widest">Subtitles</span>
+                                    <button 
+                                        onClick={() => setSubtitles(!subtitles)}
+                                        className={`text-xs px-3 py-1 border transition-all ${subtitles ? 'bg-white text-black border-white' : 'text-gray-400 border-gray-600'}`}
+                                    >
+                                        {subtitles ? 'ON' : 'OFF'}
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-gray-500 italic leading-relaxed">
+                                    * We recommend playing with subtitles OFF for the best immersive experience.
+                                </p>
+                            </div>
+
+                            <div className="h-px bg-white/10 w-full"></div>
+
+                            <div className="flex flex-col gap-6 items-center mt-4">
+                                <a href="#" className="text-xs text-gray-500 hover:text-white underline underline-offset-4 decoration-gray-700 transition-colors">
+                                    Privacy Policy
+                                </a>
+
+                                <button className="flex items-center gap-3 px-6 py-3 border border-yellow-700/50 text-yellow-600 hover:bg-yellow-900/10 hover:text-yellow-500 transition-all rounded-sm group">
+                                    <CoffeeIcon size={16} />
+                                    <span className="text-xs uppercase tracking-widest">Gift a Coffee</span>
+                                </button>
+                            </div>
+
+                            <div className="mt-auto pt-8 text-center">
+                                <p className="text-[10px] text-gray-700 font-mono">v0.1.0 Beta</p>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* TRANSITION OVERLAY */}
                     {showTransition && (
@@ -322,19 +390,6 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<Menu />);
     </script>
-    
-    <style>
-        .animate-fade-in-up {
-            animation: fadeInUp 0.3s ease-out forwards;
-        }
-        .animate-fade-in {
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    </style>
 </body>
 </html>
 
