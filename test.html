@@ -133,6 +133,52 @@
         }
         
         .game-viewport { touch-action: none; background-color: #000; }
+
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            height: 24px;
+            cursor: pointer;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        /* Webkit (Chrome, Safari, Edge) */
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 1px;
+            border: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #f9f9f7;
+            border: none;
+            -webkit-appearance: none;
+            margin-top: -5px; /* (trackHeight / 2) - (thumbHeight / 2) */
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+        }
+        /* Firefox */
+        input[type=range]::-moz-range-track {
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 1px;
+            border: none;
+        }
+        input[type=range]::-moz-range-thumb {
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #f9f9f7;
+            border: none;
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+        }
     </style>
 </head>
 <body>
@@ -254,7 +300,7 @@
         const Pause = ({ size = 20, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" className={className}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>);
         const MusicNote = ({ size = 22, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>);
         const MusicOff = ({ size = 22, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>);
-        const Sparkles = ({ size = 24, fill="currentColor" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="none"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>);
+        const Sparkles = ({ size = 24, fill="currentColor" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="none"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L12 3Z"/></svg>);
         const ArrowLeft = ({ size = 24, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>);
         const NextIcon = ({ size = 16, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>);
 
@@ -276,8 +322,8 @@
                     <button onClick={onBack} className="absolute top-6 left-6 z-50 text-white/50 hover:text-white transition-colors">
                         <ArrowLeft size={24} />
                     </button>
-                    <button onClick={bgmControl.toggleBgm} className="absolute top-6 right-6 z-50 p-2 text-[#f9f9f7] hover:text-white">
-                        {bgmControl.isBgmOn ? <MusicNote size={20} className="text-[#f9f9f7]"/> : <MusicOff size={20} className="text-gray-600"/>}
+                    <button onClick={bgmControl.toggleMute} className="absolute top-6 right-6 z-50 p-2 text-[#f9f9f7] hover:text-white">
+                        {bgmControl.bgmVolume > 0 ? <MusicNote size={20} className="text-[#f9f9f7]"/> : <MusicOff size={20} className="text-gray-600"/>}
                     </button>
                     <div className="absolute top-16 text-center" style={{animation: 'fadeIn 2s ease-out forwards'}}>
                         <p className="text-[10px] tracking-[0.3em] text-gray-500 uppercase mb-2">Chapter {data.id}</p>
@@ -286,7 +332,7 @@
                     </div>
                     <div className="flex flex-col gap-6 text-center max-w-md">
                         {data.storyLines.map((line, index) => (
-                            <p key={index} className={`font-script text-lg text-[#f9f9f7] leading-relaxed transition-all duration-1000 transform ${index < visibleLines ? 'opacity-80 translate-y-0' : 'opacity-0 translate-y-4'}`}>"{line}"</p>
+                            <p key={index} className={`font-script text-base text-[#f9f9f7] leading-relaxed transition-all duration-1000 transform ${index < visibleLines ? 'opacity-80 translate-y-0' : 'opacity-0 translate-y-4'}`}>"{line}"</p>
                         ))}
                     </div>
                     <div className={`absolute bottom-16 transition-all duration-1000 ${showButton ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
@@ -388,7 +434,7 @@
 
             return (
                 <div className="flex flex-col h-[100dvh] w-full bg-[#1a1a1a] text-[#f9f9f7] overflow-hidden select-none relative animate-fade-in-game">
-                    <header className="flex justify-between items-center px-6 py-4 bg-[#1a1a1a]/90 backdrop-blur-sm z-10 border-b border-white/10 shadow-sm shrink-0 landscape:hidden">
+                    <header className="flex justify-between items-center px-6 py-4 bg-[#1a1a1a]/90 backdrop-blur-sm z-10 border-b border-white/10 shadow-sm shrink-0 landscape:hidden lg:flex">
                         <div className="flex items-center gap-2 text-gray-400 hover:text-white w-20 cursor-pointer" onClick={onBack}>
                             <ArrowLeft size={20} className="text-gray-400" /><span className="text-xs uppercase tracking-widest hidden sm:inline">Back</span>
                         </div>
@@ -398,20 +444,20 @@
                             <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">{remaining === 0 ? "Complete" : `${remaining} Items Left`}</p>
                         </div>
                         <div className="w-20 flex justify-end">
-                            <button onClick={bgmControl.toggleBgm} className="p-2 transition-colors active:scale-95 text-[#f9f9f7] hover:text-white">{bgmControl.isBgmOn ? <MusicNote size={20} className="text-[#f9f9f7]" /> : <MusicOff size={20} className="text-gray-600" />}</button>
+                            <button onClick={bgmControl.toggleMute} className="p-2 transition-colors active:scale-95 text-[#f9f9f7] hover:text-white">{bgmControl.bgmVolume > 0 ? <MusicNote size={20} className="text-[#f9f9f7]" /> : <MusicOff size={20} className="text-gray-600" />}</button>
                         </div>
                     </header>
                     <div className="hidden landscape:flex lg:hidden fixed right-4 top-1/2 -translate-y-1/2 flex-col gap-4 z-50 pointer-events-none">
                         <div className="bg-[#1a1a1a]/90 backdrop-blur-md p-3 rounded-2xl shadow-lg flex flex-col gap-6 items-center pointer-events-auto border border-white/10">
                             <button onClick={() => setIsPlaying(!isPlaying)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all text-[#f9f9f7] border border-white/20 hover:bg-white/10 ${isPlaying ? 'animate-pulse' : ''}`}>{isPlaying ? <Pause size={18} className="text-[#f9f9f7]"/> : <Play size={18} className="text-[#f9f9f7]"/>}</button>
-                            <button onClick={bgmControl.toggleBgm} className="w-10 h-10 flex items-center justify-center opacity-80 hover:opacity-100 text-[#f9f9f7]">{bgmControl.isBgmOn ? <MusicNote size={20} className="text-[#f9f9f7]"/> : <MusicOff size={20} className="text-gray-600" />}</button>
+                            <button onClick={bgmControl.toggleMute} className="w-10 h-10 flex items-center justify-center opacity-80 hover:opacity-100 text-[#f9f9f7]">{bgmControl.bgmVolume > 0 ? <MusicNote size={20} className="text-[#f9f9f7]"/> : <MusicOff size={20} className="text-gray-600" />}</button>
                             <div className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center bg-white/5"><span className="font-serif text-sm font-bold text-[#f9f9f7]">{remaining}</span></div>
                             <button onClick={onBack} className="text-gray-400 hover:text-white mt-2"><ArrowLeft size={20} className="text-gray-400"/></button>
                         </div>
                     </div>
                     
                     <div className="hidden lg:flex fixed top-4 right-4 z-50">
-                         <button onClick={bgmControl.toggleBgm} className="p-2 transition-colors active:scale-95 text-[#f9f9f7] hover:text-white">{bgmControl.isBgmOn ? <MusicNote size={20} className="text-[#f9f9f7]" /> : <MusicOff size={20} className="text-gray-600" />}</button>
+                         <button onClick={bgmControl.toggleMute} className="p-2 transition-colors active:scale-95 text-[#f9f9f7] hover:text-white">{bgmControl.bgmVolume > 0 ? <MusicNote size={20} className="text-[#f9f9f7]" /> : <MusicOff size={20} className="text-gray-600" />}</button>
                     </div>
 
                     <div ref={containerRef} className="flex-1 relative overflow-hidden bg-[#0a0a0a] cursor-grab active:cursor-grabbing game-viewport" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={handleWheel} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
@@ -438,7 +484,7 @@
                             </div>
                         )}
                     </div>
-                    <footer className="bg-[#1a1a1a] px-8 py-6 pb-safe border-t border-white/10 flex justify-between items-center z-10 shadow-[0_-5px_15px_rgba(0,0,0,0.2)] shrink-0 landscape:hidden">
+                    <footer className="bg-[#1a1a1a] px-8 py-6 pb-safe border-t border-white/10 flex justify-between items-center z-10 shadow-[0_-5px_15px_rgba(0,0,0,0.2)] shrink-0 landscape:hidden lg:flex">
                         <button onClick={() => setIsPlaying(!isPlaying)} className={`flex items-center gap-3 transition-colors ${isPlaying ? 'text-gray-400' : 'text-[#f9f9f7]'}`}><div className={`w-12 h-12 rounded-full border border-white/20 flex items-center justify-center transition-all ${isPlaying ? 'animate-pulse bg-white/10' : 'hover:bg-white/5'}`}>{isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}</div><div className="flex flex-col text-left"><span className="text-[10px] uppercase tracking-widest text-gray-500">The Master</span><span className="font-serif text-sm italic">{isPlaying ? "Speaking..." : "Listen to order"}</span></div></button>
                         <button onClick={() => setIsDevMode(!isDevMode)} className={`text-[9px] font-bold px-2 py-1 rounded transition-colors ${isDevMode ? 'bg-red-500 text-white' : 'text-gray-500 hover:text-gray-300'}`}>{isDevMode ? "DEV ON" : "DEV"}</button>
                     </footer>
@@ -454,14 +500,14 @@
             useEffect(() => { const timer = setTimeout(() => setIsInitialLoad(false), 6000); return () => clearTimeout(timer); }, []);
 
             const handleOpenJournal = () => {
-                audioActions.playClick();
+                audioActions.playClick2();
                 const lastCleared = Math.max(0, ...clearedChapters);
                 const nextChapter = (lastCleared < Object.keys(CHAPTERS_DB).length) ? lastCleared + 1 : 1;
                 onNavigate('STORY', nextChapter > 1 ? nextChapter : 1);
             };
 
             const handleViewChange = (newView) => {
-                audioActions.playClick();
+                audioActions.playClick2();
                 setView(newView);
             };
 
@@ -471,8 +517,8 @@
             return (
                 <div className="relative w-full h-[100dvh] flex flex-col justify-between py-12 px-6 overflow-hidden">
                     <div className="absolute top-6 right-6 z-50">
-                        <button onClick={bgmControl.toggleBgm} className="p-2 text-[#f9f9f7] hover:text-white transition-colors">
-                             {bgmControl.isBgmOn ? <MusicNote size={20} className="text-[#f9f9f7]"/> : <MusicOff size={20} className="text-gray-600"/>}
+                        <button onClick={bgmControl.toggleMute} className="p-2 text-[#f9f9f7] hover:text-white transition-colors">
+                             {bgmControl.bgmVolume > 0 ? <MusicNote size={20} className="text-[#f9f9f7]"/> : <MusicOff size={20} className="text-gray-600"/>}
                         </button>
                     </div>
 
@@ -535,20 +581,31 @@
                         <div className="flex-1 overflow-y-auto custom-scroll p-8 flex flex-col gap-8">
                             <div className="flex flex-col gap-3"><span className="text-sm tracking-widest mb-2">Cloud Save</span>{user ? (<div className="p-4 border border-white/10 bg-white/5 flex flex-col gap-2"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">{user.photoURL && <img src={user.photoURL} alt="User" />}</div><div><p className="text-xs text-white">{user.displayName}</p><p className="text-[10px] text-gray-400">Progress Saved</p></div></div><button onClick={logout} className="text-[10px] text-red-400 underline self-start mt-1">Sign Out</button></div>) : (<div className="flex flex-col gap-2"><button onClick={login} className="flex items-center justify-center gap-3 w-full py-3 border border-white/20 hover:bg-white/5 text-gray-300 transition-colors"><GoogleIcon size={16} /><span className="text-xs font-bold uppercase tracking-widest">Sign in with Google</span></button><p className="text-[10px] text-gray-500 italic">Sign in to save your progress across devices.</p></div>)}</div>
                             <div className="h-px bg-white/10 w-full border-b border-white/5 border-solid opacity-60"></div>
-                            <div className="flex flex-col gap-3"><div className="flex justify-between items-center"><span className="text-sm tracking-widest">Subtitles</span><button onClick={settingsControl.toggleSubtitles} className={`text-xs w-12 py-1 border transition-all text-center ${settingsControl.subtitles ? 'bg-white text-black border-white' : 'text-gray-400 border-gray-600'}`}>{settingsControl.subtitles ? 'ON' : 'OFF'}</button></div><p className="text-[10px] text-gray-500 italic leading-relaxed">* We recommend playing with subtitles OFF for the best immersive experience.</p></div>
+                            
+                            <div className="flex flex-col gap-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm tracking-widest">Subtitles</span>
+                                    <button onClick={settingsControl.toggleSubtitles} className={`text-xs w-16 py-1 border transition-all text-center ${settingsControl.subtitles ? 'bg-white text-black border-white' : 'text-gray-400 border-gray-600'}`}>{settingsControl.subtitles ? 'ON' : 'OFF'}</button>
+                                </div>
+                                <p className="text-[10px] text-gray-500 italic leading-relaxed">* We recommend playing with subtitles OFF for the best immersive experience.</p>
+                                <div className="h-px bg-white/10 w-full border-b border-white/5 border-solid opacity-60 mt-2"></div>
+                            </div>
+
                             <div className="flex flex-col gap-4 mt-2">
-                                <h3 className="text-xs font-bold text-center text-gray-500 uppercase tracking-widest">Sound</h3>
-                                <div className="flex justify-between items-center px-2">
-                                    <span className="text-sm text-gray-300">BGM</span>
-                                    <button onClick={bgmControl.toggleBgm} className={`text-xs w-12 py-1 border transition-all text-center ${bgmControl.isBgmOn ? 'bg-white text-black border-white' : 'text-gray-400 border-gray-600'}`}>{bgmControl.isBgmOn ? 'ON' : 'OFF'}</button>
-                                </div>
-                                <div className="flex justify-between items-center px-2">
-                                    <span className="text-sm text-gray-300">VOICE</span>
-                                    <button onClick={settingsControl.toggleVoice} className={`text-xs w-12 py-1 border transition-all text-center ${settingsControl.voiceOn ? 'bg-white text-black border-white' : 'text-gray-400 border-gray-600'}`}>{settingsControl.voiceOn ? 'ON' : 'OFF'}</button>
-                                </div>
-                                <div className="flex justify-between items-center px-2">
-                                    <span className="text-sm text-gray-300">SFX</span>
-                                    <button onClick={settingsControl.toggleSfx} className={`text-xs w-12 py-1 border transition-all text-center ${settingsControl.sfxOn ? 'bg-white text-black border-white' : 'text-gray-400 border-gray-600'}`}>{settingsControl.sfxOn ? 'ON' : 'OFF'}</button>
+                                <span className="text-sm tracking-widest text-left">Sound</span>
+                                <div className="flex flex-col gap-4">
+                                    <div className="flex justify-center items-center gap-6">
+                                        <span className="text-sm text-gray-300 w-12 text-right">BGM</span>
+                                        <input type="range" min="0" max="1" step="0.01" value={bgmControl.bgmVolume} onChange={(e) => bgmControl.setBgmVolume(parseFloat(e.target.value))} />
+                                    </div>
+                                    <div className="flex justify-center items-center gap-6">
+                                        <span className="text-sm text-gray-300 w-12 text-right">VOICE</span>
+                                        <input type="range" min="0" max="1" step="0.01" value={settingsControl.voiceVolume} onChange={(e) => settingsControl.setVoiceVolume(parseFloat(e.target.value))} />
+                                    </div>
+                                    <div className="flex justify-center items-center gap-6">
+                                        <span className="text-sm text-gray-300 w-12 text-right">SFX</span>
+                                        <input type="range" min="0" max="1" step="0.01" value={settingsControl.sfxVolume} onChange={(e) => settingsControl.setSfxVolume(parseFloat(e.target.value))} />
+                                    </div>
                                 </div>
                             </div>
                             <div className="h-px bg-white/10 w-full border-b border-white/5 border-solid opacity-60"></div>
@@ -570,14 +627,17 @@
             const [user, setUser] = useState(null);
             const [clearedChapters, setClearedChapters] = useState([1]);
             
-            const [isBgmOn, setIsBgmOn] = useState(false);
-            const [sfxOn, setSfxOn] = useState(true);
-            const [voiceOn, setVoiceOn] = useState(true);
+            // Audio States (Volume: 0.0 - 1.0)
+            const [bgmVolume, setBgmVolume] = useState(0.5);
+            const [prevBgmVolume, setPrevBgmVolume] = useState(0.5); // For mute toggle
+            const [sfxVolume, setSfxVolume] = useState(1.0);
+            const [voiceVolume, setVoiceVolume] = useState(1.0);
             const [subtitles, setSubtitles] = useState(false);
             
             const homeBgmRef = useRef(new Audio('music/school-of-magic.mp3'));
             const gameBgmRef = useRef(new Audio('music/the-mischievous-wizard.mp3'));
             const sfxClick = useRef(new Audio('music/click.mp3'));
+            const sfxClick2 = useRef(new Audio('music/click2.mp3'));
             const sfxFound = useRef(new Audio('music/found.mp3'));
             const sfxComplete = useRef(new Audio('music/complete.mp3'));
 
@@ -590,22 +650,33 @@
                 };
             }, []);
 
+            // Handle immediate volume change for active BGM
+            useEffect(() => {
+                if (screen === 'HOME' || screen === 'STORY') {
+                   if (!homeBgmRef.current.paused) homeBgmRef.current.volume = bgmVolume;
+                } else if (screen === 'GAME') {
+                   if (!gameBgmRef.current.paused) gameBgmRef.current.volume = bgmVolume;
+                }
+            }, [bgmVolume, screen]);
+
             useEffect(() => {
                 const fadeDuration = 1000;
                 const steps = 20;
                 const interval = fadeDuration / steps;
                 
-                if (!isBgmOn) {
+                // If BGM is muted/off (volume 0), pause everything
+                if (bgmVolume <= 0) {
                     homeBgmRef.current.pause();
                     gameBgmRef.current.pause();
                     return;
                 }
 
                 if (screen === 'HOME' || screen === 'STORY') {
+                    // Fade OUT Game BGM if playing
                     if (gameBgmRef.current.paused === false) {
-                        let vol = 1;
+                        let vol = gameBgmRef.current.volume;
                         const fadeOut = setInterval(() => {
-                            vol = Math.max(0, vol - (1/steps));
+                            vol = Math.max(0, vol - 0.05);
                             gameBgmRef.current.volume = vol;
                             if (vol <= 0) {
                                 clearInterval(fadeOut);
@@ -615,21 +686,23 @@
                         }, interval);
                     }
                     
+                    // Fade IN Home BGM if paused
                     if (homeBgmRef.current.paused) {
                         homeBgmRef.current.volume = 0;
                         homeBgmRef.current.play().catch(e => console.log("Auto-play prevented", e));
                         let vol = 0;
                         const fadeIn = setInterval(() => {
-                            vol = Math.min(1, vol + (1/steps));
+                            vol = Math.min(bgmVolume, vol + 0.05);
                             homeBgmRef.current.volume = vol;
-                            if (vol >= 1) clearInterval(fadeIn);
+                            if (vol >= bgmVolume) clearInterval(fadeIn);
                         }, interval);
                     }
                 } else if (screen === 'GAME') {
+                    // Fade OUT Home BGM
                     if (homeBgmRef.current.paused === false) {
-                        let vol = 1;
+                        let vol = homeBgmRef.current.volume;
                         const fadeOut = setInterval(() => {
-                            vol = Math.max(0, vol - (1/steps));
+                            vol = Math.max(0, vol - 0.05);
                             homeBgmRef.current.volume = vol;
                             if (vol <= 0) {
                                 clearInterval(fadeOut);
@@ -639,33 +712,43 @@
                         }, interval);
                     }
 
+                    // Fade IN Game BGM
                     if (gameBgmRef.current.paused) {
                         gameBgmRef.current.volume = 0;
                         gameBgmRef.current.play().catch(e => console.log("Auto-play prevented", e));
                         let vol = 0;
                         const fadeIn = setInterval(() => {
-                            vol = Math.min(1, vol + (1/steps));
+                            vol = Math.min(bgmVolume, vol + 0.05);
                             gameBgmRef.current.volume = vol;
-                            if (vol >= 1) clearInterval(fadeIn);
+                            if (vol >= bgmVolume) clearInterval(fadeIn);
                         }, interval);
                     }
                 }
-            }, [screen, isBgmOn]);
+            }, [screen, bgmVolume]); // Re-run when screen changes or volume changes (though volume change handles play state logic too)
 
             const playSfx = (type) => {
-                if (!sfxOn) return;
+                if (sfxVolume <= 0) return;
                 let audio = null;
                 if (type === 'click') audio = sfxClick.current;
+                else if (type === 'click2') audio = sfxClick2.current;
                 else if (type === 'found') audio = sfxFound.current;
                 else if (type === 'complete') audio = sfxComplete.current;
                 
                 if (audio) {
+                    audio.volume = sfxVolume;
                     audio.currentTime = 0;
                     audio.play().catch(e => {});
                 }
             };
 
-            const toggleBgm = () => setIsBgmOn(!isBgmOn);
+            const toggleMute = () => {
+                if (bgmVolume > 0) {
+                    setPrevBgmVolume(bgmVolume);
+                    setBgmVolume(0);
+                } else {
+                    setBgmVolume(prevBgmVolume > 0 ? prevBgmVolume : 0.5);
+                }
+            };
 
             useEffect(() => {
                 if (!auth) return;
@@ -714,25 +797,27 @@
 
             const audioActions = {
                 playClick: () => playSfx('click'),
+                playClick2: () => playSfx('click2'),
                 playFound: () => playSfx('found'),
                 playComplete: () => playSfx('complete')
             };
 
             const bgmControl = {
-                isBgmOn,
-                toggleBgm
+                bgmVolume,
+                setBgmVolume,
+                toggleMute
             };
             
             const settingsControl = {
-                sfxOn, toggleSfx: () => setSfxOn(!sfxOn),
-                voiceOn, toggleVoice: () => setVoiceOn(!voiceOn),
+                sfxVolume, setSfxVolume,
+                voiceVolume, setVoiceVolume,
                 subtitles, toggleSubtitles: () => setSubtitles(!subtitles)
             };
 
             return (
                 <>
                     {screen === 'HOME' && <HomeScreen onNavigate={navigate} user={user} login={login} logout={logout} clearedChapters={clearedChapters} bgmControl={bgmControl} audioActions={audioActions} settingsControl={settingsControl} />}
-                    {screen === 'STORY' && <StoryScreen chapterId={activeChapter} onStart={() => { playSfx('click'); navigate('GAME'); }} onBack={() => { playSfx('click'); navigate('HOME'); }} bgmControl={bgmControl} />}
+                    {screen === 'STORY' && <StoryScreen chapterId={activeChapter} onStart={() => { playSfx('click'); navigate('GAME'); }} onBack={() => { navigate('HOME'); }} bgmControl={bgmControl} />}
                     {screen === 'GAME' && <GameScreen chapterId={activeChapter} onBack={() => { playSfx('click'); navigate('HOME'); }} onComplete={handleChapterComplete} bgmControl={bgmControl} audioActions={audioActions} />}
                 </>
             );
