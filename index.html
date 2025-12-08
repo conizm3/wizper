@@ -262,7 +262,8 @@
                 found: "Found",
                 notFound: "Not that one...",
                 congrats: "Congratulations! You've reached the end of current content.",
-                beginSearch: "Begin Search"
+                beginSearch: "Begin Search",
+                skip: "Skip"
             },
             ja: {
                 appSubtitle: "- The Apprentice's Work -",
@@ -306,7 +307,8 @@
                 found: "発見：",
                 notFound: "それではない...",
                 congrats: "おめでとう！現在のコンテンツはここまでだ。",
-                beginSearch: "調査開始"
+                beginSearch: "調査開始",
+                skip: "スキップ"
             }
         };
 
@@ -430,6 +432,7 @@
             const [fade, setFade] = useState(true);
             const [showButton, setShowButton] = useState(false);
             const storyVoiceRef = useRef(new Audio('voice/c1/story.mp3'));
+            const activeTimeouts = useRef([]);
 
             useEffect(() => {
                 if (chapterId === 1 && voiceControl.voiceVolume > 0) {
@@ -453,37 +456,58 @@
                 }
             }, [voiceControl.voiceVolume, chapterId]);
 
+            const clearAllTimeouts = () => {
+                activeTimeouts.current.forEach(clearTimeout);
+                activeTimeouts.current = [];
+            };
+
+            const handleSkip = () => {
+                clearAllTimeouts();
+                storyVoiceRef.current.pause();
+                storyVoiceRef.current.currentTime = 0;
+                setCurrentLineIndex(lines.length - 1);
+                setFade(true);
+                setShowButton(true);
+            };
+
             useEffect(() => {
                 setCurrentLineIndex(0);
                 setShowButton(false);
                 setFade(true);
+                clearAllTimeouts();
 
                 const fadeDuration = 500;
-                const chapter1Durations = [8000, 4000, 5000, 7000];
+                const chapter1Durations = [6000, 4000, 5000, 7000];
 
-                const sequence = async () => {
-                    for (let i = 0; i < lines.length; i++) {
-                        setFade(true);
-                        
-                        let lineDuration = 4000;
-                        if (chapterId === 1 && i < chapter1Durations.length) {
-                            lineDuration = chapter1Durations[i];
-                        }
+                let accumulatedTime = 0;
 
-                        if (i < lines.length - 1) {
-                            await new Promise(r => setTimeout(r, lineDuration));
-                            setFade(false);
-                            await new Promise(r => setTimeout(r, fadeDuration));
-                            setCurrentLineIndex(prev => prev + 1);
-                        } else {
-                            await new Promise(r => setTimeout(r, 1000));
-                        }
+                lines.forEach((_, i) => {
+                    let duration = 4000;
+                    if (chapterId === 1 && i < chapter1Durations.length) {
+                        duration = chapter1Durations[i];
                     }
-                    setShowButton(true);
-                };
-                
-                sequence();
-                
+
+                    if (i < lines.length - 1) {
+                        const fadeOutTime = accumulatedTime + duration;
+                        const t1 = setTimeout(() => setFade(false), fadeOutTime);
+                        activeTimeouts.current.push(t1);
+
+                        const nextLineTime = fadeOutTime + fadeDuration;
+                        const t2 = setTimeout(() => {
+                            setCurrentLineIndex(i + 1);
+                            setFade(true);
+                        }, nextLineTime);
+                        activeTimeouts.current.push(t2);
+
+                        accumulatedTime = nextLineTime;
+                    } else {
+                        const buttonTime = accumulatedTime + 1000;
+                        const t3 = setTimeout(() => setShowButton(true), buttonTime);
+                        activeTimeouts.current.push(t3);
+                    }
+                });
+
+                return () => clearAllTimeouts();
             }, [lines, chapterId]);
 
             return (
@@ -504,10 +528,18 @@
                         <h1 className="text-2xl font-serif text-gray-300 tracking-widest">{lang === 'ja' ? data.title_ja : data.title}</h1>
                         <div className="w-0 h-px bg-white mx-auto mt-6 animate-expand-line"></div>
                     </div>
-                    <div className="flex flex-col items-center justify-center h-40 max-w-md text-center">
+                    <div className="flex flex-col items-center justify-center h-40 max-w-md text-center relative">
                         <p className={`font-script text-base text-[#f9f9f7] leading-relaxed transition-opacity duration-500 ${fade ? 'opacity-100' : 'opacity-0'}`}>
                             "{lines[currentLineIndex]}"
                         </p>
+                        {!showButton && (
+                            <button 
+                                onClick={handleSkip} 
+                                className="absolute -bottom-8 right-0 text-[10px] text-gray-600 hover:text-gray-400 font-serif tracking-widest uppercase transition-colors"
+                            >
+                                {t.skip} &gt;&gt;
+                            </button>
+                        )}
                     </div>
                     <div className={`absolute bottom-16 transition-all duration-1000 ${showButton ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                         <div className="text-center mb-8"><p className="text-xs font-serif tracking-widest text-gray-400 opacity-80">{lang === 'ja' ? data.mission_ja : data.mission}</p></div>
