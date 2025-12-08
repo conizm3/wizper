@@ -313,25 +313,27 @@
         const CHAPTERS_DB = {
             1: {
                 id: 1,
-                title: "The Master's Desk",
-                title_ja: "師匠の机",
+                title: "The Dusty Shelf",
+                title_ja: "埃かぶった小瓶たち",
                 sub: "Study Room",
                 sub_ja: "書斎",
                 storyLines: [
-                    "Ah, there you are, apprentice.",
-                    "My desk is in utter chaos again...",
-                    "I need to finish this spell before the moon rises.",
-                    "Be my eyes, will you?"
+                    "...Magic... is not just about waving wands, my Apprentice.",
+                    "It is about...precision.",
+                    "I require a few specific potions from this cluttered shelf.",
+                    "Listen closely to my instructions... and bring me only the ones I ask for.",
+                    "...Be warned. Picking the wrong bottle... will result in a catastrophe."
                 ],
                 storyLines_ja: [
-                    "あぁ、そこにいたか、見習いよ。",
-                    "私の机がまた散らかってしまってな...",
-                    "月が昇る前にこの呪文を完成させねばならん。",
-                    "私の目の代わりになってくれんか？"
+                    "魔法とは、単に杖を振り回すことではないぞ、弟子よ。",
+                    "重要なのは……『正確さ』じゃ。",
+                    "この散らかった棚から、 ワシが必要とする『いくつかの薬瓶』を取ってきておくれ。",
+                    "ワシの指示をよく聞き、 『正解の薬』だけを持ってくるんじゃぞ。",
+                    "心してかかれ。 間違った瓶を選べば……大惨事じゃ。"
                 ],
                 mission: "- Find 5 hidden items -",
                 mission_ja: "- 5つのアイテムを探せ -",
-                imageUrl: "https://wordrobe.cc/wizper/images/chapter_1.png",
+                imageUrl: "https://conizm.github.io/wizper/images/c1photo.png",
                 script: "First, find the old key... yes, look down low. Then the strange stone, the mark, the sand, and finally the coin at the top.",
                 completionText: "Well done. You have keen eyes, unlike my previous apprentice...",
                 completionText_ja: "よくやった。前の見習いとは違っていい目をしている...",
@@ -413,44 +415,99 @@
         const Pause = ({ size = 20, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" className={className}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>);
         const MusicNote = ({ size = 22, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>);
         const MusicOff = ({ size = 22, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>);
+        const Mic = ({ size = 22, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>);
+        const MicOff = ({ size = 22, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>);
         const Sparkles = ({ size = 24, fill="currentColor" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="none"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>);
         const ArrowLeft = ({ size = 24, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>);
         const NextIcon = ({ size = 16, className="" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>);
 
-        const StoryScreen = ({ chapterId, onStart, onBack, bgmControl, lang }) => {
+        const StoryScreen = ({ chapterId, onStart, onBack, bgmControl, voiceControl, lang }) => {
             const data = CHAPTERS_DB[chapterId];
-            const [visibleLines, setVisibleLines] = useState(0);
-            const [showButton, setShowButton] = useState(false);
             const t = TRANSLATIONS[lang];
             const lines = lang === 'ja' ? (data.storyLines_ja || data.storyLines) : data.storyLines;
+            
+            const [currentLineIndex, setCurrentLineIndex] = useState(0);
+            const [fade, setFade] = useState(true);
+            const [showButton, setShowButton] = useState(false);
+            const storyVoiceRef = useRef(new Audio('voice/c1/story.mp3'));
 
             useEffect(() => {
-                setVisibleLines(0);
+                if (chapterId === 1 && voiceControl.voiceVolume > 0) {
+                    storyVoiceRef.current.volume = voiceControl.voiceVolume;
+                    storyVoiceRef.current.currentTime = 0;
+                    storyVoiceRef.current.play().catch(e => console.log("Voice autoplay prevented", e));
+                }
+                return () => {
+                    storyVoiceRef.current.pause();
+                };
+            }, [chapterId, voiceControl.voiceVolume]);
+
+            useEffect(() => {
+                if (chapterId === 1) {
+                    if (voiceControl.voiceVolume > 0) {
+                        storyVoiceRef.current.volume = voiceControl.voiceVolume;
+                        if (storyVoiceRef.current.paused) storyVoiceRef.current.play().catch(()=>{});
+                    } else {
+                        storyVoiceRef.current.pause();
+                    }
+                }
+            }, [voiceControl.voiceVolume, chapterId]);
+
+            useEffect(() => {
+                setCurrentLineIndex(0);
                 setShowButton(false);
-                const timers = lines.map((_, index) => {
-                    return setTimeout(() => setVisibleLines(prev => prev + 1), 800 * (index + 1) + 500); 
-                });
-                const btnTimer = setTimeout(() => setShowButton(true), 800 * (lines.length + 1) + 500);
-                return () => { timers.forEach(clearTimeout); clearTimeout(btnTimer); };
-            }, [data, lang, lines]);
+                setFade(true);
+
+                const fadeDuration = 500;
+                const chapter1Durations = [8000, 4000, 5000, 7000];
+
+                const sequence = async () => {
+                    for (let i = 0; i < lines.length; i++) {
+                        setFade(true);
+                        
+                        let lineDuration = 4000;
+                        if (chapterId === 1 && i < chapter1Durations.length) {
+                            lineDuration = chapter1Durations[i];
+                        }
+
+                        if (i < lines.length - 1) {
+                            await new Promise(r => setTimeout(r, lineDuration));
+                            setFade(false);
+                            await new Promise(r => setTimeout(r, fadeDuration));
+                            setCurrentLineIndex(prev => prev + 1);
+                        } else {
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
+                    }
+                    setShowButton(true);
+                };
+                
+                sequence();
+                
+            }, [lines, chapterId]);
 
             return (
                 <div className="relative w-full h-[100dvh] flex flex-col items-center justify-center px-8 py-12 bg-[#111] animate-fade-in-long">
                     <button onClick={onBack} className="absolute top-6 left-6 z-50 text-white/50 hover:text-white transition-colors">
                         <ArrowLeft size={24} />
                     </button>
-                    <button onClick={bgmControl.toggleMute} className="absolute top-6 right-6 z-50 p-2 text-[#f9f9f7] hover:text-white">
-                        {bgmControl.bgmVolume > 0 ? <MusicNote size={20} className="text-[#f9f9f7]"/> : <MusicOff size={20} className="text-gray-600"/>}
-                    </button>
+                    <div className="absolute top-6 right-6 z-50 flex gap-2">
+                        <button onClick={voiceControl.toggleVoiceMute} className="p-2 text-[#f9f9f7] hover:text-white">
+                            {voiceControl.voiceVolume > 0 ? <Mic size={20} className="text-[#f9f9f7]"/> : <MicOff size={20} className="text-gray-600"/>}
+                        </button>
+                        <button onClick={bgmControl.toggleMute} className="p-2 text-[#f9f9f7] hover:text-white">
+                            {bgmControl.bgmVolume > 0 ? <MusicNote size={20} className="text-[#f9f9f7]"/> : <MusicOff size={20} className="text-gray-600"/>}
+                        </button>
+                    </div>
                     <div className="absolute top-16 text-center" style={{animation: 'fadeIn 2s ease-out forwards'}}>
                         <p className="text-[10px] tracking-[0.3em] text-gray-500 uppercase mb-2">{t.chapter} {data.id}</p>
                         <h1 className="text-2xl font-serif text-gray-300 tracking-widest">{lang === 'ja' ? data.title_ja : data.title}</h1>
                         <div className="w-0 h-px bg-white mx-auto mt-6 animate-expand-line"></div>
                     </div>
-                    <div className="flex flex-col gap-6 text-center max-w-md">
-                        {lines.map((line, index) => (
-                            <p key={index} className={`font-script text-base text-[#f9f9f7] leading-relaxed transition-all duration-1000 transform ${index < visibleLines ? 'opacity-80 translate-y-0' : 'opacity-0 translate-y-4'}`}>"{line}"</p>
-                        ))}
+                    <div className="flex flex-col items-center justify-center h-40 max-w-md text-center">
+                        <p className={`font-script text-base text-[#f9f9f7] leading-relaxed transition-opacity duration-500 ${fade ? 'opacity-100' : 'opacity-0'}`}>
+                            "{lines[currentLineIndex]}"
+                        </p>
                     </div>
                     <div className={`absolute bottom-16 transition-all duration-1000 ${showButton ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                         <div className="text-center mb-8"><p className="text-xs font-serif tracking-widest text-gray-400 opacity-80">{lang === 'ja' ? data.mission_ja : data.mission}</p></div>
@@ -462,7 +519,7 @@
             );
         };
 
-        const GameScreen = ({ chapterId, onBack, onComplete, bgmControl, audioActions, lang }) => {
+        const GameScreen = ({ chapterId, onBack, onComplete, bgmControl, voiceControl, audioActions, lang }) => {
             const data = CHAPTERS_DB[chapterId];
             const t = TRANSLATIONS[lang];
             const [isPlaying, setIsPlaying] = useState(false);
@@ -562,13 +619,17 @@
                             <h1 className="font-serif text-lg tracking-wide font-medium text-[#f9f9f7] truncate max-w-[200px]">{lang === 'ja' ? data.title_ja : data.title}</h1>
                             <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">{remaining === 0 ? t.complete : `${remaining} ${t.itemsLeft}`}</p>
                         </div>
-                        <div className="w-20 flex justify-end">
+                        <div className="w-20 flex justify-end gap-2">
+                            <button onClick={voiceControl.toggleVoiceMute} className="p-2 transition-colors active:scale-95 text-[#f9f9f7] hover:text-white">
+                                {voiceControl.voiceVolume > 0 ? <Mic size={20} className="text-[#f9f9f7]"/> : <MicOff size={20} className="text-gray-600"/>}
+                            </button>
                             <button onClick={bgmControl.toggleMute} className="p-2 transition-colors active:scale-95 text-[#f9f9f7] hover:text-white">{bgmControl.bgmVolume > 0 ? <MusicNote size={20} className="text-[#f9f9f7]" /> : <MusicOff size={20} className="text-gray-600" />}</button>
                         </div>
                     </header>
                     <div className="hidden max-lg:landscape:flex fixed right-4 top-1/2 -translate-y-1/2 flex-col gap-4 z-50 pointer-events-none">
                         <div className="bg-[#1a1a1a]/90 backdrop-blur-md p-3 rounded-2xl shadow-lg flex flex-col gap-6 items-center pointer-events-auto border border-white/10">
                             <button onClick={() => setIsPlaying(!isPlaying)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all text-[#f9f9f7] border border-white/20 hover:bg-white/10 ${isPlaying ? 'animate-pulse' : ''}`}>{isPlaying ? <Pause size={18} className="text-[#f9f9f7]"/> : <Play size={18} className="text-[#f9f9f7]"/>}</button>
+                            <button onClick={voiceControl.toggleVoiceMute} className="w-10 h-10 flex items-center justify-center opacity-80 hover:opacity-100 text-[#f9f9f7]">{voiceControl.voiceVolume > 0 ? <Mic size={20} className="text-[#f9f9f7]"/> : <MicOff size={20} className="text-gray-600" />}</button>
                             <button onClick={bgmControl.toggleMute} className="w-10 h-10 flex items-center justify-center opacity-80 hover:opacity-100 text-[#f9f9f7]">{bgmControl.bgmVolume > 0 ? <MusicNote size={20} className="text-[#f9f9f7]"/> : <MusicOff size={20} className="text-gray-600" />}</button>
                             <div className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center bg-white/5"><span className="font-serif text-sm font-bold text-[#f9f9f7]">{remaining}</span></div>
                             <button onClick={onBack} className="text-gray-400 hover:text-white mt-2"><ArrowLeft size={20} className="text-gray-400"/></button>
@@ -608,7 +669,7 @@
             );
         };
 
-        const HomeScreen = ({ onNavigate, user, login, logout, clearedChapters, bgmControl, audioActions, settingsControl, lang }) => {
+        const HomeScreen = ({ onNavigate, user, login, logout, clearedChapters, bgmControl, voiceControl, audioActions, settingsControl, lang }) => {
             const [view, setView] = useState('main'); 
             const [isInitialLoad, setIsInitialLoad] = useState(true);
             const t = TRANSLATIONS[lang];
@@ -632,7 +693,10 @@
 
             return (
                 <div className="relative w-full h-[100dvh] flex flex-col justify-between py-12 px-6 overflow-hidden">
-                    <div className="absolute top-6 right-6 z-50">
+                    <div className="absolute top-6 right-6 z-50 flex gap-2">
+                        <button onClick={voiceControl.toggleVoiceMute} className="p-2 text-[#f9f9f7] hover:text-white transition-colors">
+                             {voiceControl.voiceVolume > 0 ? <Mic size={20} className="text-[#f9f9f7]"/> : <MicOff size={20} className="text-gray-600"/>}
+                        </button>
                         <button onClick={bgmControl.toggleMute} className="p-2 text-[#f9f9f7] hover:text-white transition-colors">
                              {bgmControl.bgmVolume > 0 ? <MusicNote size={20} className="text-[#f9f9f7]"/> : <MusicOff size={20} className="text-gray-600"/>}
                         </button>
@@ -670,7 +734,7 @@
                                 const maxCleared = Math.max(0, ...clearedChapters);
                                 const locked = chapter.id > maxCleared + (maxCleared < chapter.id ? 0 : 1);
                                 return (
-                                    <div key={chapter.id} onClick={() => !locked && onNavigate('STORY', chapter.id)} className={`p-4 border ${locked ? 'border-white/5 text-gray-600' : 'border-white/20 bg-white/5 cursor-pointer hover:bg-white/10'} transition-all`}>
+                                    <div key={chapter.id} onClick={() => { if(!locked) { audioActions.playClick2(); onNavigate('STORY', chapter.id); } }} className={`p-4 border ${locked ? 'border-white/5 text-gray-600' : 'border-white/20 bg-white/5 cursor-pointer hover:bg-white/10'} transition-all`}>
                                         <div className="flex justify-between items-start mb-1"><span className="text-[10px] uppercase tracking-widest opacity-50">{t.chapter} {chapter.id}</span>{locked ? <LockIcon size={12}/> : <span className="text-[10px] text-gray-400">{t.available}</span>}</div>
                                         <h3 className="font-serif text-lg mb-1">{lang === 'ja' ? chapter.title_ja : chapter.title}</h3>
                                         <p className="font-script text-sm italic opacity-60">{lang === 'ja' ? chapter.sub_ja : chapter.sub}</p>
@@ -756,7 +820,10 @@
             const [bgmVolume, setBgmVolume] = useState(0);
             const [prevBgmVolume, setPrevBgmVolume] = useState(0.5); 
             const [sfxVolume, setSfxVolume] = useState(1.0);
-            const [voiceVolume, setVoiceVolume] = useState(1.0);
+            
+            const [voiceVolume, setVoiceVolume] = useState(0); 
+            const [prevVoiceVolume, setPrevVoiceVolume] = useState(1.0); 
+
             const [subtitles, setSubtitles] = useState(false);
             const [language, setLanguage] = useState('en');
             
@@ -883,6 +950,15 @@
                 }
             };
 
+            const toggleVoiceMute = () => {
+                if (voiceVolume > 0) {
+                    setPrevVoiceVolume(voiceVolume);
+                    setVoiceVolume(0);
+                } else {
+                    setVoiceVolume(prevVoiceVolume > 0 ? prevVoiceVolume : 1.0);
+                }
+            };
+
             useEffect(() => {
                 if (!auth) return;
                 const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
@@ -940,20 +1016,24 @@
                 setBgmVolume,
                 toggleMute
             };
-            
-            const handleVoiceChange = (vol) => {
-                setVoiceVolume(vol);
-                const now = Date.now();
-                if (now - lastVoiceTestTime.current > 200) { 
-                    if (vol > 0) {
-                        testVoiceRef.current.volume = vol;
-                        testVoiceRef.current.currentTime = 0;
-                        testVoiceRef.current.play().catch(()=>{});
-                    }
-                    lastVoiceTestTime.current = now;
-                }
-            };
 
+            const voiceControl = {
+                voiceVolume,
+                setVoiceVolume: (vol) => {
+                    setVoiceVolume(vol);
+                    const now = Date.now();
+                    if (now - lastVoiceTestTime.current > 200) { 
+                        if (vol > 0) {
+                            testVoiceRef.current.volume = vol;
+                            testVoiceRef.current.currentTime = 0;
+                            testVoiceRef.current.play().catch(()=>{});
+                        }
+                        lastVoiceTestTime.current = now;
+                    }
+                },
+                toggleVoiceMute
+            };
+            
             const handleSfxChange = (vol) => {
                 setSfxVolume(vol);
                 const now = Date.now();
@@ -969,16 +1049,17 @@
 
             const settingsControl = {
                 sfxVolume, setSfxVolume: handleSfxChange,
-                voiceVolume, setVoiceVolume: handleVoiceChange,
+                voiceVolume: voiceControl.voiceVolume, 
+                setVoiceVolume: voiceControl.setVoiceVolume,
                 subtitles, toggleSubtitles: () => setSubtitles(!subtitles),
                 setLanguage: setLanguage
             };
 
             return (
                 <>
-                    {screen === 'HOME' && <HomeScreen onNavigate={navigate} user={user} login={login} logout={logout} clearedChapters={clearedChapters} bgmControl={bgmControl} audioActions={audioActions} settingsControl={settingsControl} lang={language} />}
-                    {screen === 'STORY' && <StoryScreen chapterId={activeChapter} onStart={() => { playSfx('click'); navigate('GAME'); }} onBack={() => { navigate('HOME'); }} bgmControl={bgmControl} lang={language} />}
-                    {screen === 'GAME' && <GameScreen chapterId={activeChapter} onBack={() => { playSfx('click'); navigate('HOME'); }} onComplete={handleChapterComplete} bgmControl={bgmControl} audioActions={audioActions} lang={language} />}
+                    {screen === 'HOME' && <HomeScreen onNavigate={navigate} user={user} login={login} logout={logout} clearedChapters={clearedChapters} bgmControl={bgmControl} voiceControl={voiceControl} audioActions={audioActions} settingsControl={settingsControl} lang={language} />}
+                    {screen === 'STORY' && <StoryScreen chapterId={activeChapter} onStart={() => { playSfx('click'); navigate('GAME'); }} onBack={() => { navigate('HOME'); }} bgmControl={bgmControl} voiceControl={voiceControl} lang={language} />}
+                    {screen === 'GAME' && <GameScreen chapterId={activeChapter} onBack={() => { playSfx('click'); navigate('HOME'); }} onComplete={handleChapterComplete} bgmControl={bgmControl} voiceControl={voiceControl} audioActions={audioActions} lang={language} />}
                 </>
             );
         };
