@@ -380,7 +380,7 @@
                 ],
                 mission: "- Find 3 hidden items -",
                 mission_ja: "- 3つのアイテムを探せ -",
-                imageUrl: "https://conizm.github.io/wizper/images/c1photo_0.png",
+                imageUrl: "https://conizm.github.io/wizper/images/c1photo_1.png",
                 script: "First, find the old key... yes, look down low. Then the strange stone, the mark, the sand, and finally the coin at the top.",
                 completionText: "Well done. You have keen eyes, unlike my previous apprentice...",
                 completionText_ja: "よくやった。前の見習いとは違っていい目をしている...",
@@ -604,7 +604,7 @@
                 clearAllTimeouts();
 
                 const fadeDuration = 500;
-                const chapter1Durations = [6000, 4000, 5000, 7000];
+                const chapter1Durations = [6000, 7000, 4000, 8000, 5000];
 
                 let accumulatedTime = 0;
 
@@ -693,6 +693,16 @@
             const gameVoiceRef = useRef(new Audio());
             const [currentSubtitle, setCurrentSubtitle] = useState("");
             const subtitleTimeouts = useRef([]);
+            const [isDevMode, setIsDevMode] = useState(false);
+            const [lastClickCoords, setLastClickCoords] = useState(null);
+
+            const [gameLangMode, setGameLangMode] = useState('en'); 
+            
+            useEffect(() => {
+                if (voiceLang === 'ja' || subLang === 'ja') setGameLangMode('ja');
+                else if (voiceLang === 'off' && subLang === 'off') setGameLangMode('off');
+                else setGameLangMode('en');
+            }, []);
 
             const containerRef = useRef(null);
             const imageRef = useRef(null);
@@ -711,20 +721,8 @@
             }, [currentTargetIndex, chapterId]); 
 
             const handlePlayPause = () => {
-                if (masterMute || settingsControl.voiceLang === 'off') {
-                    if (settingsControl.voiceLang === 'off') {
-                         // User wants to play but voice is OFF. Maybe force enable temporarily or do nothing?
-                         // Prompt says "adjust to play". Let's force it on for this interaction if user explicitly clicks play.
-                         settingsControl.setVoiceLang('en'); // Auto switch to English to play?
-                         // Re-trigger play in next render or force play now?
-                         // Better UX: Just play if masterMute is false, treating 'off' as 'en' temporarily?
-                         // No, let's respect 'off' but assume user wants to hear it now.
-                         // Let's just switch voiceLang to 'en' and play.
-                         // But we can't await state update easily here.
-                         // Let's just proceed to play logic and ensure volume is up.
-                    } else {
-                        return; // Master mute is on
-                    }
+                if (masterMute) {
+                    return; 
                 }
 
                 if (isPlaying) {
@@ -738,7 +736,6 @@
                     gameVoiceRef.current.play().catch(e => console.log("Play error", e));
                     setIsPlaying(true);
                     
-                    // Subtitles Logic
                     const showSubs = settingsControl.subLang !== 'off';
                     
                     if (showSubs && (currentTarget.subtitles_en || currentTarget.subtitles_ja)) {
@@ -767,15 +764,11 @@
                         }, accumulatedTime);
                         subtitleTimeouts.current.push(tEnd);
                     } else {
-                         // If no subtitles or disabled, still stop playing state eventually?
-                         // We rely on audio 'ended' event or approximation.
-                         // Let's add an 'ended' listener to ref
                          gameVoiceRef.current.onended = () => setIsPlaying(false);
                     }
                 }
             };
 
-            // Mute handling for Voice
             useEffect(() => {
                 if (masterMute) {
                     gameVoiceRef.current.pause();
@@ -793,6 +786,7 @@
                 const rect = imageRef.current.getBoundingClientRect();
                 const xPercent = parseFloat((((e.clientX - rect.left) / rect.width) * 100).toFixed(1));
                 const yPercent = parseFloat((((e.clientY - rect.top) / rect.height) * 100).toFixed(1));
+                if (isDevMode) { setLastClickCoords({ x: xPercent, y: yPercent }); return; }
                 
                 if (isComplete) return;
 
@@ -847,12 +841,17 @@
                             <h1 className="font-serif text-lg tracking-wide font-medium text-[#f9f9f7] truncate max-w-[200px]">{lang === 'ja' ? data.title_ja : data.title}</h1>
                             <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">{remaining === 0 ? t.complete : `${remaining} ${t.itemsLeft}`}</p>
                         </div>
-                        <div className="w-20"></div>
+                        <div className="w-20 flex justify-end gap-2 items-center">
+                            <button onClick={() => setIsDevMode(!isDevMode)} className={`text-[9px] font-bold px-2 py-1 rounded transition-colors border border-white/20 ${isDevMode ? 'bg-red-500 text-white' : 'text-gray-500 hover:text-gray-300'}`}>DEV</button>
+                        </div>
                     </header>
                     
                     <div ref={containerRef} className="flex-1 relative overflow-hidden bg-[#0a0a0a] game-viewport flex items-center justify-center">
-                        <div className="relative shadow-2xl w-full h-full">
-                           <img ref={imageRef} src={data.imageUrl} alt="Hidden Objects Scene" className="w-full h-full object-cover lg:object-contain pointer-events-auto" draggable={false} onClick={handleImageClick}/>
+                        <div className="relative shadow-2xl w-full h-full flex items-center justify-center">
+                           <img ref={imageRef} src={data.imageUrl} alt="Hidden Objects Scene" className="w-full h-full object-cover lg:object-contain pointer-events-auto object-center" draggable={false} onClick={handleImageClick}/>
+                           {isDevMode && targets.map(t => (<div key={t.id} className="absolute border-2 border-blue-500 rounded-full bg-blue-500/20 pointer-events-none" style={{ left: `${t.x}%`, top: `${t.y}%`, width: `${t.radius * 2}%`, height: `${t.radius * 2}%`, transform: 'translate(-50%, -50%)', }}><span className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-[10px] px-1 rounded whitespace-nowrap z-50">{lang === 'ja' && t.name_ja ? t.name_ja : t.name}</span></div>))}
+                           {isDevMode && lastClickCoords && (<div className="absolute w-4 h-4 bg-red-500 rounded-full pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-50 shadow-lg border-2 border-white" style={{ left: `${lastClickCoords.x}%`, top: `${lastClickCoords.y}%` }}/>)}
+                           {isDevMode && lastClickCoords && (<div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50"><div className="bg-red-500 text-white px-4 py-2 rounded shadow-lg font-mono text-xs">x: {lastClickCoords.x}, y: {lastClickCoords.y}</div></div>)}
                         </div>
                         
                         {!message && currentSubtitle && (
@@ -1339,7 +1338,7 @@
                 setVoiceVolume: (vol) => {
                     setVoiceVolume(vol);
                     const now = Date.now();
-                    if (now - lastVoiceTestTime.current > 200) { 
+                    if (now - lastVoiceTestTime.current > 200 && !masterMute) { 
                         if (vol > 0) {
                             testVoiceRef.current.volume = vol;
                             testVoiceRef.current.currentTime = 0;
@@ -1354,7 +1353,7 @@
             const handleSfxChange = (vol) => {
                 setSfxVolume(vol);
                 const now = Date.now();
-                if (now - lastSfxTestTime.current > 200) { 
+                if (now - lastSfxTestTime.current > 200 && !masterMute) { 
                     if (vol > 0) {
                         sfxClick2.current.volume = vol; 
                         sfxClick2.current.currentTime = 0;
